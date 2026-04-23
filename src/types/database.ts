@@ -40,6 +40,7 @@ export type Database = {
           role?: 'fan' | 'club_admin' | 'super_admin'
           club_id?: string | null
         }
+        Relationships: []
       }
       clubs: {
         Row: {
@@ -72,6 +73,7 @@ export type Database = {
           secondary_color?: string
           stadium_name?: string | null
         }
+        Relationships: []
       }
       matches: {
         Row: {
@@ -113,6 +115,15 @@ export type Database = {
           away_score?: number | null
           qr_code_token?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'matches_club_id_fkey'
+            columns: ['club_id']
+            isOneToOne: false
+            referencedRelation: 'clubs'
+            referencedColumns: ['id']
+          }
+        ]
       }
       checkins: {
         Row: {
@@ -139,6 +150,22 @@ export type Database = {
           points_earned?: number
           scanned_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'checkins_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'checkins_match_id_fkey'
+            columns: ['match_id']
+            isOneToOne: false
+            referencedRelation: 'matches'
+            referencedColumns: ['id']
+          }
+        ]
       }
       pronostics: {
         Row: {
@@ -171,6 +198,22 @@ export type Database = {
           points_earned?: number | null
           is_correct?: boolean | null
         }
+        Relationships: [
+          {
+            foreignKeyName: 'pronostics_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pronostics_match_id_fkey'
+            columns: ['match_id']
+            isOneToOne: false
+            referencedRelation: 'matches'
+            referencedColumns: ['id']
+          }
+        ]
       }
       fan_points: {
         Row: {
@@ -197,6 +240,15 @@ export type Database = {
           season_points?: number
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'fan_points_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
       }
       rewards: {
         Row: {
@@ -235,6 +287,15 @@ export type Database = {
           is_active?: boolean
           category?: 'merchandise' | 'experience' | 'discount' | 'digital'
         }
+        Relationships: [
+          {
+            foreignKeyName: 'rewards_club_id_fkey'
+            columns: ['club_id']
+            isOneToOne: false
+            referencedRelation: 'clubs'
+            referencedColumns: ['id']
+          }
+        ]
       }
       redemptions: {
         Row: {
@@ -264,6 +325,22 @@ export type Database = {
           status?: 'pending' | 'confirmed' | 'cancelled'
           redemption_code?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'redemptions_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'redemptions_reward_id_fkey'
+            columns: ['reward_id']
+            isOneToOne: false
+            referencedRelation: 'rewards'
+            referencedColumns: ['id']
+          }
+        ]
       }
       points_transactions: {
         Row: {
@@ -296,6 +373,7 @@ export type Database = {
           reference_id?: string | null
           description?: string
         }
+        Relationships: []
       }
     }
     Views: {
@@ -309,6 +387,7 @@ export type Database = {
           total_points: number
           rank: number
         }
+        Relationships: []
       }
     }
     Functions: {
@@ -329,6 +408,9 @@ export type Database = {
       match_status: 'upcoming' | 'live' | 'finished' | 'cancelled'
       reward_category: 'merchandise' | 'experience' | 'discount' | 'digital'
       transaction_type: 'checkin' | 'pronostic' | 'bonus' | 'redemption'
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
