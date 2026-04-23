@@ -1,0 +1,51 @@
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0f0f1a] via-[#1a1a2e] to-[#16213e] px-4">
+      <div className="text-center space-y-8 max-w-lg">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center text-3xl">
+            🏟️
+          </div>
+          <h1 className="text-4xl font-black tracking-tight">FanPass</h1>
+        </div>
+
+        <p className="text-gray-400 text-lg">
+          Scanne ton QR code au stade, pronostique, accumule des points
+          et débloque des récompenses exclusives.
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link
+            href="/scan"
+            className="px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 font-semibold text-lg transition-all active:scale-95"
+          >
+            Espace Supporter
+          </Link>
+          <Link
+            href="/club/dashboard"
+            className="px-8 py-4 rounded-2xl bg-white/10 hover:bg-white/20 font-semibold text-lg transition-all active:scale-95"
+          >
+            Dashboard Club
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 pt-4">
+          {[
+            { icon: '📲', label: 'Scan QR', desc: 'Check-in au match' },
+            { icon: '⚽', label: 'Pronostics', desc: 'Prédit le score' },
+            { icon: '🎁', label: 'Récompenses', desc: 'Échange tes points' },
+          ].map((item) => (
+            <div key={item.label} className="bg-white/5 rounded-2xl p-4 text-center">
+              <div className="text-2xl mb-2">{item.icon}</div>
+              <div className="font-semibold text-sm">{item.label}</div>
+              <div className="text-gray-500 text-xs mt-1">{item.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </main>
+  )
+}
