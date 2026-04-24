@@ -1,138 +1,78 @@
-import { Gift, ShoppingBag, Zap, Star } from 'lucide-react'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import type { Database } from '@/types/database'
+import { getLoyaltyLevel, LOYALTY_CONFIG } from '@/types/database'
+import { RewardsCatalog } from './RewardsCatalog'
 import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
+import { Star } from 'lucide-react'
+import { getDefaultClubId } from '@/lib/club'
 
-const categories = [
-  { id: 'all', label: 'Tout' },
-  { id: 'merchandise', label: 'Merch' },
-  { id: 'experience', label: 'Expériences' },
-  { id: 'discount', label: 'Réductions' },
-  { id: 'digital', label: 'Digital' },
-]
+export default async function RewardsPage() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
+  )
 
-const rewards = [
-  {
-    id: '1',
-    title: 'Maillot signé',
-    description: "Maillot de la saison signé par l'équipe",
-    pts: 1500,
-    category: 'merchandise',
-    emoji: '👕',
-    stock: 5,
-  },
-  {
-    id: '2',
-    title: 'Visite vestiaire',
-    description: "Visite exclusive des vestiaires avant un match",
-    pts: 2000,
-    category: 'experience',
-    emoji: '🏆',
-    stock: 2,
-  },
-  {
-    id: '3',
-    title: '-20% boutique',
-    description: 'Code réduction sur tout le merchandising officiel',
-    pts: 300,
-    category: 'discount',
-    emoji: '🏷️',
-    stock: null,
-  },
-  {
-    id: '4',
-    title: 'Fond écran officiel',
-    description: 'Pack wallpapers HD exclusifs saison 2024-25',
-    pts: 50,
-    category: 'digital',
-    emoji: '🖼️',
-    stock: null,
-  },
-  {
-    id: '5',
-    title: 'Place VIP',
-    description: "Place en tribune VIP pour un match au choix",
-    pts: 3000,
-    category: 'experience',
-    emoji: '🎫',
-    stock: 10,
-  },
-  {
-    id: '6',
-    title: 'Écharpe du club',
-    description: "Écharpe officielle de la saison en cours",
-    pts: 400,
-    category: 'merchandise',
-    emoji: '🧣',
-    stock: 20,
-  },
-]
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/auth/login')
 
-const myPoints = 1250
+  const CLUB_ID = (await getDefaultClubId()) ?? ''
 
-export default function RewardsPage() {
+  const [{ data: rewards }, { data: pointsData }, { data: myRedemptions }] = await Promise.all([
+    supabase.from('rewards').select('*').eq('club_id', CLUB_ID).eq('is_active', true).order('sort_order'),
+    supabase.from('fan_points').select('total_points, lifetime_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
+    supabase.from('redemptions').select('reward_id, status').eq('user_id', user.id),
+  ])
+
+  const totalPoints = pointsData?.total_points ?? 0
+  const lifetimePoints = pointsData?.lifetime_points ?? 0
+  const loyaltyLevel = getLoyaltyLevel(lifetimePoints)
+  const levelConfig = LOYALTY_CONFIG[loyaltyLevel]
+
+  // Count redemptions per reward
+  const redemptionCount: Record<string, number> = {}
+  myRedemptions?.forEach(r => {
+    if (r.status !== 'cancelled') {
+      redemptionCount[r.reward_id] = (redemptionCount[r.reward_id] ?? 0) + 1
+    }
+  })
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-black">Récompenses</h1>
         <p className="text-gray-400 text-sm mt-1">Échange tes points contre des goodies exclusifs</p>
       </div>
 
-      {/* Solde */}
-      <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-          <Star className="w-5 h-5 text-emerald-400" />
+      {/* Balance card */}
+      <Card variant="glass">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+              <Star className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Ton solde disponible</p>
+              <p className="text-xl font-black text-emerald-400">{totalPoints.toLocaleString('fr-BE')} pts</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-400">Niveau</p>
+            <p className="text-sm font-bold" style={{ color: levelConfig.color }}>{levelConfig.name}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-xs text-gray-400">Ton solde</p>
-          <p className="font-black text-xl text-emerald-400">{myPoints.toLocaleString()} pts</p>
-        </div>
-      </div>
+      </Card>
 
-      {/* Catégories */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            className="shrink-0 px-4 py-1.5 rounded-full text-sm font-medium bg-white/10 hover:bg-white/20 transition-colors"
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Grille récompenses */}
-      <div className="grid grid-cols-2 gap-3">
-        {rewards.map((reward) => {
-          const canAfford = myPoints >= reward.pts
-          return (
-            <Card
-              key={reward.id}
-              variant="dark"
-              className={`flex flex-col gap-3 ${!canAfford ? 'opacity-60' : ''}`}
-            >
-              <div className="text-4xl">{reward.emoji}</div>
-              <div className="flex-1">
-                <h3 className="font-bold text-sm leading-tight">{reward.title}</h3>
-                <p className="text-xs text-gray-400 mt-1 leading-relaxed">{reward.description}</p>
-                {reward.stock !== null && (
-                  <p className="text-xs text-amber-400 mt-1">Stock : {reward.stock}</p>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className={`font-black text-sm ${canAfford ? 'text-emerald-400' : 'text-gray-500'}`}>
-                  {reward.pts} pts
-                </span>
-                <button
-                  disabled={!canAfford}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-700 disabled:text-gray-500 transition-colors active:scale-95"
-                >
-                  {canAfford ? 'Échanger' : 'Insuffisant'}
-                </button>
-              </div>
-            </Card>
-          )
-        })}
-      </div>
+      <RewardsCatalog
+        rewards={rewards ?? []}
+        userPoints={totalPoints}
+        loyaltyLevel={loyaltyLevel}
+        redemptionCount={redemptionCount}
+        userId={user.id}
+      />
     </div>
   )
 }

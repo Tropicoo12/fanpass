@@ -1,102 +1,122 @@
-import { Trophy, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import type { Database, Match, Pronostic } from '@/types/database'
+import { PredictionForm } from './PredictionForm'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Trophy } from 'lucide-react'
+import { getDefaultClubId } from '@/lib/club'
 
-export default function PronosticsPage() {
+function fmtDate(iso: string) {
+  return new Intl.DateTimeFormat('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+}
+
+export default async function PronosticsPage() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/auth/login')
+
+  const CLUB_ID = (await getDefaultClubId()) ?? ''
+
+  const [{ data: openMatches }, { data: history }] = await Promise.all([
+    supabase.from('matches').select('*').eq('club_id', CLUB_ID).in('status', ['upcoming', 'live']).order('match_date').limit(5),
+    supabase.from('pronostics').select('*, matches(home_team, away_team, match_date, status, home_score, away_score)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
+  ])
+
+  // Map existing pronostics by match_id
+  const myPronosByMatch: Record<string, Pronostic> = {}
+  history?.forEach(p => { myPronosByMatch[p.match_id] = p })
+
+  const pendingCount = history?.filter(p => p.result === null).length ?? 0
+  const wonCount = history?.filter(p => p.result && p.result !== 'wrong').length ?? 0
+  const totalPts = history?.reduce((acc, p) => acc + (p.points_earned ?? 0), 0) ?? 0
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black">Pronostics</h1>
-        <p className="text-gray-400 text-sm mt-1">Prédit le score et gagne jusqu'à 100 pts par match</p>
+        <p className="text-gray-400 text-sm mt-1">Prédit les scores et gagne des points</p>
       </div>
 
-      {/* Match ouvert */}
-      <Card variant="glass">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wider">Match à venir</p>
-          <Badge variant="warning">Ouvert</Badge>
-        </div>
-
-        <div className="flex items-center justify-around gap-4 mb-6">
-          <div className="text-center">
-            <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-2xl mx-auto mb-2">🦁</div>
-            <p className="font-bold text-sm">FC Bruxelles</p>
-          </div>
-          <span className="text-2xl font-black text-gray-500">VS</span>
-          <div className="text-center">
-            <div className="w-14 h-14 rounded-full bg-purple-700 flex items-center justify-center text-2xl mx-auto mb-2">🦄</div>
-            <p className="font-bold text-sm">Anderlecht</p>
-          </div>
-        </div>
-
-        {/* Score input */}
-        <div className="flex items-center justify-center gap-4">
-          <input
-            type="number"
-            min="0"
-            max="20"
-            defaultValue={2}
-            className="w-16 h-16 text-center text-3xl font-black rounded-xl bg-white/10 border border-white/20 focus:outline-none focus:border-emerald-500"
-          />
-          <span className="text-2xl font-black text-gray-500">—</span>
-          <input
-            type="number"
-            min="0"
-            max="20"
-            defaultValue={1}
-            className="w-16 h-16 text-center text-3xl font-black rounded-xl bg-white/10 border border-white/20 focus:outline-none focus:border-emerald-500"
-          />
-        </div>
-
-        <div className="mt-4 flex gap-2">
-          <div className="flex-1 p-2.5 bg-white/5 rounded-xl text-center">
-            <p className="text-xs text-gray-400">Score exact</p>
-            <p className="font-bold text-emerald-400">100 pts</p>
-          </div>
-          <div className="flex-1 p-2.5 bg-white/5 rounded-xl text-center">
-            <p className="text-xs text-gray-400">Bon vainqueur</p>
-            <p className="font-bold text-amber-400">30 pts</p>
-          </div>
-        </div>
-
-        <button className="w-full mt-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 font-semibold transition-all active:scale-95">
-          Valider mon pronostic
-        </button>
-
-        <div className="flex items-center gap-1.5 mt-3 text-xs text-gray-500">
-          <Clock className="w-3.5 h-3.5" />
-          <span>Ferme dans 48h</span>
-        </div>
-      </Card>
-
-      {/* Historique */}
-      <div>
-        <h2 className="font-bold mb-3">Historique</h2>
-        <div className="space-y-2">
-          {[
-            { match: 'FC Bruxelles vs Bruges', pred: '2-1', result: '2-1', pts: 100, correct: true },
-            { match: 'FC Bruxelles vs Gand', pred: '1-0', result: '2-1', pts: 30, correct: false },
-          ].map((item) => (
-            <Card key={item.match} variant="dark">
-              <div className="flex items-center gap-3">
-                {item.correct
-                  ? <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
-                  : <XCircle className="w-5 h-5 text-amber-400 shrink-0" />
-                }
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{item.match}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Pronostic: {item.pred} · Résultat: {item.result}
-                  </p>
-                </div>
-                <Badge variant={item.correct ? 'success' : 'warning'}>
-                  +{item.pts} pts
-                </Badge>
-              </div>
-            </Card>
-          ))}
-        </div>
+      {/* Stats strip */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'En attente', value: pendingCount, color: 'text-amber-400' },
+          { label: 'Corrects', value: wonCount, color: 'text-emerald-400' },
+          { label: 'Points gagnés', value: totalPts, color: 'text-blue-400' },
+        ].map(s => (
+          <Card key={s.label} variant="dark" className="text-center">
+            <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+          </Card>
+        ))}
       </div>
+
+      {/* Open matches */}
+      {openMatches && openMatches.length > 0 ? (
+        <div>
+          <h2 className="font-bold mb-3">Matchs ouverts</h2>
+          <div className="space-y-4">
+            {openMatches.map(match => (
+              <PredictionForm
+                key={match.id}
+                match={match}
+                existing={myPronosByMatch[match.id] ?? null}
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <Card variant="dark" className="text-center py-8">
+          <Trophy className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-400">Aucun match ouvert aux pronostics pour le moment</p>
+        </Card>
+      )}
+
+      {/* History */}
+      {history && history.length > 0 && (
+        <div>
+          <h2 className="font-bold mb-3">Historique</h2>
+          <div className="space-y-2">
+            {history.map(p => {
+              const match = (p as any).matches
+              return (
+                <Card key={p.id} variant="dark">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{match?.home_team} vs {match?.away_team}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <p className="text-xs text-gray-400">
+                          Pronos : <span className="text-white font-bold">{p.predicted_home_score} – {p.predicted_away_score}</span>
+                        </p>
+                        {match?.status === 'finished' && match?.home_score !== null && (
+                          <p className="text-xs text-gray-400">
+                            Résultat : <span className="text-white font-bold">{match.home_score} – {match.away_score}</span>
+                          </p>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-600 mt-0.5">{fmtDate(match?.match_date ?? '')}</p>
+                    </div>
+                    <div className="shrink-0">
+                      {p.result === 'exact' && <Badge variant="success">Exact +{p.points_earned}</Badge>}
+                      {p.result === 'winner' && <Badge variant="info">Vainqueur +{p.points_earned}</Badge>}
+                      {p.result === 'wrong' && <Badge variant="error">Raté</Badge>}
+                      {!p.result && <Badge variant="neutral">En attente</Badge>}
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

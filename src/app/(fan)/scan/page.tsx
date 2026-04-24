@@ -1,75 +1,253 @@
-import { ScanQrCode, CheckCircle, Clock } from 'lucide-react'
+'use client'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { ScanQrCode, CheckCircle2, XCircle, Loader2, MapPin } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
+import { useToast } from '@/components/ui/Toast'
+
+type ScanState = 'idle' | 'scanning' | 'processing' | 'success' | 'error'
+
+interface ScanResult {
+  match: { home_team: string; away_team: string; venue: string | null }
+  pointsEarned: number
+  message?: string
+}
 
 export default function ScanPage() {
+  const { toast } = useToast()
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const rafRef = useRef<number>(0)
+
+  const [state, setState] = useState<ScanState>('idle')
+  const [result, setResult] = useState<ScanResult | null>(null)
+  const [errorMsg, setErrorMsg] = useState('')
+  const [manualToken, setManualToken] = useState('')
+  const [nativeScan, setNativeScan] = useState(false)
+
+  useEffect(() => {
+    setNativeScan('BarcodeDetector' in window)
+  }, [])
+
+  const stopCamera = useCallback(() => {
+    cancelAnimationFrame(rafRef.current)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+  }, [])
+
+  useEffect(() => () => stopCamera(), [stopCamera])
+
+  async function validateToken(token: string) {
+    setState('processing')
+    try {
+      const geoPos = await new Promise<GeolocationPosition | null>(resolve => {
+        if (!navigator.geolocation) return resolve(null)
+        navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { timeout: 3000 })
+      })
+      const res = await fetch('/api/qr/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          lat: geoPos?.coords.latitude ?? null,
+          lng: geoPos?.coords.longitude ?? null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setState('error')
+        setErrorMsg(data.error ?? 'Erreur de validation.')
+        return
+      }
+      stopCamera()
+      setState('success')
+      setResult(data)
+    } catch {
+      setState('error')
+      setErrorMsg('Erreur réseau. Réessaie.')
+    }
+  }
+
+  async function startCamera() {
+    setState('scanning')
+    setErrorMsg('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 } },
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+      if ('BarcodeDetector' in window) {
+        // @ts-ignore
+        const detector = new BarcodeDetector({ formats: ['qr_code'] })
+        const loop = async () => {
+          if (!videoRef.current || videoRef.current.readyState < 2) {
+            rafRef.current = requestAnimationFrame(loop); return
+          }
+          try {
+            // @ts-ignore
+            const codes = await detector.detect(videoRef.current)
+            if (codes.length > 0) {
+              stopCamera()
+              await validateToken(codes[0].rawValue as string)
+              return
+            }
+          } catch {}
+          rafRef.current = requestAnimationFrame(loop)
+        }
+        rafRef.current = requestAnimationFrame(loop)
+      } else {
+        stopCamera()
+        setState('idle')
+        toast('Scanner non disponible. Entre le code manuellement.', 'info')
+      }
+    } catch {
+      setState('idle')
+      setErrorMsg('Accès caméra refusé. Entre le token manuellement.')
+    }
+  }
+
+  async function handleManual(e: React.FormEvent) {
+    e.preventDefault()
+    if (manualToken.trim()) await validateToken(manualToken.trim())
+  }
+
+  function reset() {
+    setState('idle'); setResult(null); setErrorMsg(''); setManualToken('')
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black">Check-in Match</h1>
-        <p className="text-gray-400 text-sm mt-1">Scanne le QR code affiché au stade pour valider ta présence</p>
+        <h1 className="text-2xl font-black">Scanner QR</h1>
+        <p className="text-gray-400 text-sm mt-1">Scanne le code affiché au stade</p>
       </div>
 
-      {/* QR Scanner zone */}
-      <div className="relative aspect-square max-w-xs mx-auto rounded-3xl overflow-hidden bg-black/40 border-2 border-dashed border-emerald-500/50 flex flex-col items-center justify-center gap-4">
-        <div className="absolute inset-4 border-2 border-emerald-500/30 rounded-2xl" />
-        {/* Corners */}
-        <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-emerald-500 rounded-tl-lg" />
-        <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-emerald-500 rounded-tr-lg" />
-        <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-emerald-500 rounded-bl-lg" />
-        <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-emerald-500 rounded-br-lg" />
-
-        <ScanQrCode className="w-16 h-16 text-emerald-500/60" />
-        <p className="text-gray-400 text-sm text-center px-8">
-          Place le QR code dans le cadre
-        </p>
-        {/* TODO: intégrer une lib de scan QR (ex: html5-qrcode) */}
-        <button className="mt-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 font-semibold text-sm transition-all active:scale-95">
-          Activer la caméra
-        </button>
-      </div>
-
-      {/* Prochain match */}
-      <Card variant="glass">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Prochain match</p>
-            <h3 className="font-bold text-lg">FC Bruxelles vs Anderlecht</h3>
-            <div className="flex items-center gap-1 mt-1 text-gray-400 text-sm">
-              <Clock className="w-3.5 h-3.5" />
-              <span>Sam. 26 avril · 18h00</span>
+      {state === 'idle' && (
+        <div className="space-y-4">
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-black border border-white/10 flex flex-col items-center justify-center gap-4">
+            <div className="w-20 h-20 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center">
+              <ScanQrCode className="w-9 h-9 text-emerald-400" />
             </div>
+            <p className="text-gray-400 text-sm text-center max-w-[180px]">
+              Appuie sur le bouton pour scanner
+            </p>
+            <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-emerald-500/60 rounded-tl-lg" />
+            <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-emerald-500/60 rounded-tr-lg" />
+            <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-emerald-500/60 rounded-bl-lg" />
+            <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-emerald-500/60 rounded-br-lg" />
           </div>
-          <Badge variant="info">À venir</Badge>
+          <Button onClick={startCamera} className="w-full py-3">
+            <ScanQrCode className="w-4 h-4 mr-2" /> Activer la caméra
+          </Button>
         </div>
-        <div className="mt-4 p-3 bg-emerald-500/10 rounded-xl flex items-center gap-2">
-          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-          <p className="text-sm text-emerald-300">
-            Scanne le QR le jour du match pour gagner <strong>50 pts</strong>
-          </p>
-        </div>
-      </Card>
+      )}
 
-      {/* Historique */}
-      <div>
-        <h2 className="font-bold mb-3">Derniers check-ins</h2>
+      {state === 'scanning' && (
+        <div className="relative aspect-square rounded-2xl overflow-hidden bg-black border border-emerald-500/40">
+          <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-2/3 h-0.5 bg-emerald-400/50 animate-pulse" />
+          </div>
+          <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-emerald-400 rounded-tl-lg" />
+          <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-emerald-400 rounded-tr-lg" />
+          <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-emerald-400 rounded-bl-lg" />
+          <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-emerald-400 rounded-br-lg" />
+          <div className="absolute bottom-0 inset-x-0 p-4">
+            <Button variant="secondary" onClick={() => { stopCamera(); setState('idle') }} className="w-full">
+              Annuler
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {state === 'processing' && (
+        <div className="aspect-square rounded-2xl bg-black/40 border border-white/10 flex flex-col items-center justify-center gap-4">
+          <Loader2 className="w-10 h-10 text-emerald-400 animate-spin" />
+          <p className="text-gray-400">Validation en cours…</p>
+        </div>
+      )}
+
+      {state === 'success' && result && (
+        <Card variant="dark" className="border border-emerald-500/40">
+          <div className="text-center space-y-4 py-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-emerald-400">Check-in validé !</h2>
+              <p className="text-gray-400 text-sm mt-1">{result.match.home_team} vs {result.match.away_team}</p>
+              {result.match.venue && (
+                <div className="flex items-center justify-center gap-1 mt-1 text-xs text-gray-500">
+                  <MapPin className="w-3 h-3" />{result.match.venue}
+                </div>
+              )}
+            </div>
+            <div className="py-3 px-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 inline-block">
+              <p className="text-3xl font-black text-emerald-400">+{result.pointsEarned} pts</p>
+              <p className="text-xs text-gray-400 mt-1">ajoutés à ton solde</p>
+            </div>
+            {result.message && <p className="text-xs text-gray-400">{result.message}</p>}
+            <Button onClick={reset} variant="secondary" className="w-full">Fermer</Button>
+          </div>
+        </Card>
+      )}
+
+      {state === 'error' && (
+        <Card variant="dark" className="border border-red-500/40">
+          <div className="text-center space-y-4 py-4">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 border-2 border-red-500/40 flex items-center justify-center mx-auto">
+              <XCircle className="w-8 h-8 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-red-400">Validation échouée</h2>
+              <p className="text-gray-400 text-sm mt-2">{errorMsg}</p>
+            </div>
+            <Button onClick={reset} variant="secondary" className="w-full">Réessayer</Button>
+          </div>
+        </Card>
+      )}
+
+      {(state === 'idle' || state === 'error') && (
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs text-gray-500">code manuel</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+          <form onSubmit={handleManual} className="flex gap-2">
+            <input
+              value={manualToken}
+              onChange={e => setManualToken(e.target.value)}
+              placeholder="Colle le token QR ici…"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-gray-600"
+            />
+            <Button type="submit" disabled={!manualToken.trim()} size="sm" className="shrink-0 px-4">OK</Button>
+          </form>
+        </div>
+      )}
+
+      {state === 'idle' && (
         <div className="space-y-2">
           {[
-            { match: 'FC Bruxelles vs Bruges', date: '12 avril', pts: 50 },
-            { match: 'FC Bruxelles vs Gand', date: '29 mars', pts: 50 },
-          ].map((item) => (
-            <Card key={item.date} variant="dark">
-              <div className="flex items-center justify-between">
+            { icon: '📍', title: 'Au stade uniquement', desc: 'Valide uniquement en présence physique au stade.' },
+            { icon: '🔒', title: 'Un check-in par match', desc: 'Tu ne peux scanner qu\'une seule fois par rencontre.' },
+          ].map(item => (
+            <Card key={item.title} variant="dark">
+              <div className="flex items-start gap-3">
+                <span className="text-xl">{item.icon}</span>
                 <div>
-                  <p className="font-medium text-sm">{item.match}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{item.date}</p>
+                  <p className="text-sm font-semibold">{item.title}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
                 </div>
-                <Badge variant="success">+{item.pts} pts</Badge>
               </div>
             </Card>
           ))}
         </div>
-      </div>
+      )}
     </div>
   )
 }

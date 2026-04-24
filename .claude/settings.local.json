@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --yes)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(del \"C:\\\\Users\\\\sc7\\\\fanpass\\\\src\\\\middleware.ts\")",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(npm run *)",
+      "Bash(taskkill /PID 46960 /F)",
+      "Bash(cmd.exe /c \"taskkill /PID 46960 /F\")",
+      "Bash(cmd.exe *)",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 46960 -Force -ErrorAction SilentlyContinue; Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")"
     ]
   }
 }
