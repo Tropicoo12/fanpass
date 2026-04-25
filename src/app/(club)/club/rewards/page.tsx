@@ -4,7 +4,8 @@ import type { Database } from '@/types/database'
 import { LOYALTY_CONFIG } from '@/types/database'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { Gift } from 'lucide-react'
+import { Gift, ScanQrCode } from 'lucide-react'
+import Link from 'next/link'
 import { RewardsManager } from './RewardsManager'
 import { getAdminClubId } from '@/lib/club'
 import { redirect } from 'next/navigation'
@@ -39,6 +40,12 @@ export default async function ClubRewardsPage() {
           <h1 className="text-2xl font-black">Récompenses</h1>
           <p className="text-gray-400 text-sm mt-1">Gérez le catalogue de récompenses</p>
         </div>
+        <Link
+          href="/club/rewards/validate"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm font-semibold transition-colors"
+        >
+          <ScanQrCode className="w-4 h-4" /> Valider un code
+        </Link>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

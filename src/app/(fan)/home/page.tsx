@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import type { Database } from '@/types/database'
 import { getLoyaltyLevel, getLoyaltyProgress, LOYALTY_CONFIG } from '@/types/database'
-import { getDefaultClubId } from '@/lib/club'
+import { getDefaultClub } from '@/lib/club'
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
@@ -24,7 +24,9 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const CLUB_ID = (await getDefaultClubId()) ?? ''
+  const club = await getDefaultClub()
+  const CLUB_ID = club?.id ?? ''
+  const primaryColor = club?.primary_color ?? '#10b981'
 
   const [
     { data: profile },
@@ -68,25 +70,25 @@ export default async function HomePage() {
 
       {/* Points Circle + Loyalty */}
       <Card variant="glass" className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse at top left, ${primaryColor}18, transparent 60%)` }} />
         <div className="relative flex items-center gap-6">
-          {/* SVG Circle */}
-          <div className="relative w-24 h-24 shrink-0">
-            <svg className="w-24 h-24 -rotate-90" viewBox="0 0 96 96">
-              <circle cx="48" cy="48" r="40" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+          {/* Bigger SVG Circle */}
+          <div className="relative w-32 h-32 shrink-0">
+            <svg className="w-32 h-32 -rotate-90" viewBox="0 0 128 128">
+              <circle cx="64" cy="64" r="54" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
               <circle
-                cx="48" cy="48" r="40" fill="none"
-                stroke={levelConfig.color}
-                strokeWidth="8"
+                cx="64" cy="64" r="54" fill="none"
+                stroke={primaryColor}
+                strokeWidth="10"
                 strokeLinecap="round"
-                strokeDasharray={`${2 * Math.PI * 40}`}
-                strokeDashoffset={`${2 * Math.PI * 40 * (1 - progress / 100)}`}
-                className="transition-all duration-700"
+                strokeDasharray={`${2 * Math.PI * 54}`}
+                strokeDashoffset={`${2 * Math.PI * 54 * (1 - progress / 100)}`}
+                style={{ transition: 'stroke-dashoffset 0.7s ease', filter: `drop-shadow(0 0 6px ${primaryColor}88)` }}
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-black leading-none">{totalPoints >= 1000 ? (totalPoints / 1000).toFixed(1) + 'k' : totalPoints}</span>
-              <span className="text-[9px] text-gray-400 mt-0.5">points</span>
+              <span className="text-2xl font-black leading-none tabular-nums">{totalPoints >= 1000 ? (totalPoints / 1000).toFixed(1) + 'k' : totalPoints}</span>
+              <span className="text-[10px] text-gray-400 mt-1 font-medium">points</span>
             </div>
           </div>
 
@@ -97,7 +99,7 @@ export default async function HomePage() {
             </div>
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-gray-400">
-                <span>Progression niveau</span>
+                <span>Progression</span>
                 <span>{progress}%</span>
               </div>
               <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -114,7 +116,7 @@ export default async function HomePage() {
               </div>
               <div className="w-px bg-white/10" />
               <div>
-                <p className="text-gray-400">Total</p>
+                <p className="text-gray-400">Total vie</p>
                 <p className="font-bold">{lifetimePoints.toLocaleString('fr-BE')}</p>
               </div>
             </div>
@@ -142,7 +144,7 @@ export default async function HomePage() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-sm font-black text-emerald-400">+{act.points_reward}</span>
-                    <Link href={`/scan?activation=${act.id}`}>
+                    <Link href={`/activations/${act.id}`}>
                       <Badge variant="success">Jouer</Badge>
                     </Link>
                   </div>
@@ -166,7 +168,12 @@ export default async function HomePage() {
             </div>
             <div className="flex items-center justify-around py-3">
               <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-2xl mx-auto mb-2">🦁</div>
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-black mx-auto mb-2"
+                  style={{ background: primaryColor + '33', color: primaryColor, border: `2px solid ${primaryColor}55` }}
+                >
+                  {nextMatch.home_team.slice(0, 2).toUpperCase()}
+                </div>
                 <p className="font-bold text-sm">{nextMatch.home_team}</p>
               </div>
               <div className="text-center">
@@ -177,13 +184,19 @@ export default async function HomePage() {
                 )}
               </div>
               <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-purple-600/30 border border-purple-500/30 flex items-center justify-center text-2xl mx-auto mb-2">🦄</div>
+                <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg font-black mx-auto mb-2 text-gray-300">
+                  {nextMatch.away_team.slice(0, 2).toUpperCase()}
+                </div>
                 <p className="font-bold text-sm">{nextMatch.away_team}</p>
               </div>
             </div>
             <div className="flex gap-2 mt-3">
               {!alreadyCheckedIn && nextMatch.status === 'live' && (
-                <Link href="/scan" className="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-sm font-semibold text-center transition-all active:scale-95">
+                <Link
+                  href="/scan"
+                  className="flex-1 py-2 rounded-xl text-sm font-semibold text-center transition-all active:scale-95 text-white"
+                  style={{ background: primaryColor }}
+                >
                   Scan QR (+{nextMatch.checkin_points} pts)
                 </Link>
               )}

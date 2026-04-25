@@ -25,10 +25,13 @@ export default async function PronosticsPage() {
 
   const CLUB_ID = (await getDefaultClubId()) ?? ''
 
-  const [{ data: openMatches }, { data: history }] = await Promise.all([
+  const [{ data: openMatches }, { data: history }, { data: pointsData }] = await Promise.all([
     supabase.from('matches').select('*').eq('club_id', CLUB_ID).in('status', ['upcoming', 'live']).order('match_date').limit(5),
     supabase.from('pronostics').select('*, matches(home_team, away_team, match_date, status, home_score, away_score)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
+    supabase.from('fan_points').select('total_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
   ])
+
+  const userPoints = pointsData?.total_points ?? 0
 
   // Map existing pronostics by match_id
   const myPronosByMatch: Record<string, Pronostic> = {}
@@ -69,6 +72,7 @@ export default async function PronosticsPage() {
                 key={match.id}
                 match={match}
                 existing={myPronosByMatch[match.id] ?? null}
+                userPoints={userPoints}
               />
             ))}
           </div>

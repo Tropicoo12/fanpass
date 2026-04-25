@@ -56,7 +56,8 @@ export function NotificationComposer({ clubId, matches }: { clubId: string; matc
           send_now: !scheduled,
         }),
       })
-      if (!res.ok) { toast('Erreur', 'error'); return }
+      const data = await res.json()
+      if (!res.ok) { toast(data.error ?? 'Erreur', 'error'); return }
       toast(scheduled ? 'Notification planifiée !' : 'Notification envoyée !', 'success')
       setForm({ title: '', body: '', type: 'general', audience: 'all', match_id: '', scheduled_for: '' })
       router.refresh()

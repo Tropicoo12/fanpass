@@ -104,6 +104,10 @@ export type Database = {
           checkin_points: number
           prediction_points_exact: number
           prediction_points_winner: number
+          external_id: string | null
+          odds_home: number | null
+          odds_draw: number | null
+          odds_away: number | null
         }
         Insert: {
           club_id: string
@@ -118,6 +122,10 @@ export type Database = {
           checkin_points?: number
           prediction_points_exact?: number
           prediction_points_winner?: number
+          external_id?: string | null
+          odds_home?: number | null
+          odds_draw?: number | null
+          odds_away?: number | null
         }
         Update: {
           home_team?: string
@@ -129,6 +137,9 @@ export type Database = {
           away_score?: number | null
           checkin_opens_at?: string | null
           checkin_closes_at?: string | null
+          odds_home?: number | null
+          odds_draw?: number | null
+          odds_away?: number | null
         }
         Relationships: []
       }
@@ -142,8 +153,9 @@ export type Database = {
           scanned_at: string
           lat: number | null
           lng: number | null
+          device_id: string | null
         }
-        Insert: { user_id: string; match_id: string; points_earned?: number; lat?: number | null; lng?: number | null }
+        Insert: { user_id: string; match_id: string; points_earned?: number; lat?: number | null; lng?: number | null; device_id?: string | null }
         Update: never
         Relationships: []
       }
@@ -159,9 +171,11 @@ export type Database = {
           points_earned: number | null
           is_correct: boolean | null
           result: 'exact' | 'winner' | 'wrong' | null
+          points_bet: number | null
+          odds_multiplier: number | null
         }
-        Insert: { user_id: string; match_id: string; predicted_home_score: number; predicted_away_score: number }
-        Update: { predicted_home_score?: number; predicted_away_score?: number; updated_at?: string; points_earned?: number | null; is_correct?: boolean | null; result?: string | null }
+        Insert: { user_id: string; match_id: string; predicted_home_score: number; predicted_away_score: number; points_bet?: number | null; odds_multiplier?: number | null }
+        Update: { predicted_home_score?: number; predicted_away_score?: number; updated_at?: string; points_earned?: number | null; is_correct?: boolean | null; result?: string | null; points_bet?: number | null; odds_multiplier?: number | null }
         Relationships: []
       }
       fan_points: {
@@ -357,14 +371,14 @@ export type Database = {
         Row: {
           id: string
           created_at: string
-          user_id: string
           activation_id: string
-          answer: string | null
-          is_correct: boolean | null
+          user_id: string
+          answer: string
           points_earned: number
+          is_correct: boolean | null
         }
-        Insert: { user_id: string; activation_id: string; answer?: string | null; is_correct?: boolean | null; points_earned?: number }
-        Update: never
+        Insert: { activation_id: string; user_id: string; answer: string; points_earned?: number; is_correct?: boolean | null }
+        Update: { is_correct?: boolean | null; points_earned?: number }
         Relationships: []
       }
       notifications: {

@@ -1,13 +1,13 @@
 'use client'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { Eye, EyeOff, Globe } from 'lucide-react'
+import { Eye, EyeOff, Globe, Loader2 } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next') ?? '/home'
@@ -107,16 +107,24 @@ export default function LoginPage() {
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         <Button type="submit" disabled={loading} className="w-full py-3">
-          {loading ? 'Connexion…' : 'Se connecter'}
+          {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Se connecter'}
         </Button>
       </form>
 
       <p className="text-center text-sm text-gray-400">
         Pas encore de compte ?{' '}
         <Link href="/auth/signup" className="text-emerald-400 hover:text-emerald-300 font-medium">
-          S'inscrire
+          S&apos;inscrire
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-emerald-400 animate-spin" /></div>}>
+      <LoginForm />
+    </Suspense>
   )
 }

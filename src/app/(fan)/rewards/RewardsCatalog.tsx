@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import QRCode from 'react-qr-code'
 import { Loader2, Lock, Clock } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -42,6 +43,14 @@ export function RewardsCatalog({ rewards, userPoints, loyaltyLevel, redemptionCo
   const [selected, setSelected] = useState<Reward | null>(null)
   const [loading, setLoading] = useState(false)
   const [successCode, setSuccessCode] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState(0)
+
+  useEffect(() => {
+    if (!successCode) return
+    setCountdown(15 * 60)
+    const t = setInterval(() => setCountdown(c => Math.max(0, c - 1)), 1000)
+    return () => clearInterval(t)
+  }, [successCode])
 
   const categories = ['all', ...Array.from(new Set(rewards.map(r => r.category)))]
   const filtered = filter === 'all' ? rewards : rewards.filter(r => r.category === filter)
@@ -189,14 +198,31 @@ export function RewardsCatalog({ rewards, userPoints, loyaltyLevel, redemptionCo
 
         {successCode && selected && (
           <div className="text-center space-y-4">
-            <p className="text-gray-400 text-sm">Présente ce code au stand du club</p>
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
-              <p className="text-xs text-gray-500 mb-2">Code unique</p>
-              <p className="text-3xl font-black tracking-[0.2em] text-emerald-400 font-mono">{successCode}</p>
-              <p className="text-xs text-gray-500 mt-3">Valable 48h · Usage unique</p>
+            <p className="text-gray-400 text-sm">Montre ce QR au stand du club</p>
+
+            {/* QR Code */}
+            <div className="flex justify-center">
+              <div className="p-4 bg-white rounded-2xl">
+                <QRCode value={successCode} size={180} />
+              </div>
             </div>
-            <p className="text-sm text-gray-400">
-              <strong className="text-white">{selected.title}</strong> — le personnel scannera ce code pour valider ton échange.
+
+            {/* Text code */}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+              <p className="text-xs text-gray-500 mb-1">Code manuel</p>
+              <p className="text-2xl font-black tracking-[0.2em] text-emerald-400 font-mono">{successCode}</p>
+            </div>
+
+            {/* Countdown */}
+            <div className={`flex items-center justify-center gap-2 text-sm font-medium ${countdown === 0 ? 'text-red-400' : countdown < 60 ? 'text-amber-400' : 'text-gray-400'}`}>
+              <Clock className="w-4 h-4" />
+              {countdown > 0
+                ? `Scanne dans ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')} — usage unique`
+                : 'Délai expiré — le code reste valable, scanne-le au plus vite'}
+            </div>
+
+            <p className="text-xs text-gray-500">
+              <strong className="text-white">{selected.title}</strong> — invalide après le premier scan.
             </p>
             <Button onClick={closeModal} className="w-full">Fermer</Button>
           </div>

@@ -96,7 +96,8 @@ export function LiveMatchControl({ match, activations: initialActivations }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       })
-      if (!res.ok) { toast('Erreur', 'error'); return }
+      const data = await res.json()
+      if (!res.ok) { toast(data.error ?? 'Erreur', 'error'); return }
       toast(status === 'active' ? 'Activation lancée !' : 'Activation fermée', 'success')
       setActivationList(prev => prev.map(a => a.id === id ? { ...a, status } : a))
       router.refresh()

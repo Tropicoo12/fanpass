@@ -1,3 +1,28 @@
+## Claude Code Rules (Boris Cherny)
+
+1. PLAN FIRST: Before writing any code, write the complete plan. If something goes wrong mid-way: STOP, redo the plan. No code without a valid plan first.
+
+2. SUB-AGENTS FOR COMPLEX TASKS: Complex work = always use a sub-agent. Keep the main context light and focused. 1 complex task = 1 dedicated sub-agent.
+
+3. SELF-IMPROVEMENT LOOP: Every detected error becomes a rule. Save it in CLAUDE.md. Next session: -80% errors on the same topic.
+
+4. PROVE IT WORKS: Never mark a task as done without proof. Run tests + verify logs every time. No assumptions: demonstrate it works.
+
+---
+
+## 18. Frontend Design Standards
+
+- **Tailwind CSS only** — no inline style blocks or external CSS unless unavoidable. Use consistent spacing scale: `gap-2`, `gap-3`, `gap-4`, `gap-6`, `p-4`, `p-6`, `px-4 py-3`, etc.
+- **Dark-first palette** — backgrounds: `bg-[#0f0f1a]`, `bg-[#1a1a2e]`, `bg-white/5`, `bg-white/10`. Primary accent: emerald (`emerald-400`, `emerald-500`). Secondary accents: amber, blue, purple — used sparingly.
+- **Cards** — always `rounded-xl` (never `rounded-lg` or `rounded-2xl` unless purposeful). Use `border border-white/5` or `border border-white/10` for subtle separation. Elevation via `shadow-lg` or `shadow-emerald-500/10`.
+- **Transitions** — every interactive element gets `transition-colors` or `transition-all`. Buttons get `active:scale-95`. Duration default: no explicit duration (Tailwind default 150ms).
+- **Mobile-first** — design for 390px wide. Max content width: `max-w-lg mx-auto`. Use `sm:` / `md:` breakpoints only to enhance, never as the base.
+- **No placeholder UI** — never ship skeleton screens, "coming soon", dummy data labels, or `TODO` comments in rendered output. If data is missing, show a meaningful empty state with an icon and helpful text.
+- **Typography** — headings: `font-black` for hero numbers, `font-bold` for section titles, `font-medium` for labels, `font-semibold` for buttons. Body text: `text-sm`. Metadata: `text-xs text-gray-400` or `text-gray-500`.
+- **Buttons** — primary: solid emerald or club `primary_color`. Secondary: `bg-white/10 hover:bg-white/15`. Destructive: `bg-red-500/15 text-red-400`. Always include a disabled state (`disabled:opacity-50`).
+
+---
+
 \# FanPass — Claude Project Context
 
 

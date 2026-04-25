@@ -1,10 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Bell } from 'lucide-react'
 import type { Database } from '@/types/database'
-import { getLoyaltyLevel, LOYALTY_CONFIG } from '@/types/database'
 import { FanNav } from '@/components/FanNav'
-import { getDefaultClubId } from '@/lib/club'
+import { FanPointsBadge } from '@/components/FanPointsBadge'
+import { getDefaultClub } from '@/lib/club'
 
 export default async function FanLayout({
   children,
@@ -26,37 +28,41 @@ export default async function FanLayout({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const CLUB_ID = (await getDefaultClubId()) ?? ''
+  const club = await getDefaultClub()
+  const CLUB_ID = club?.id ?? ''
+  const primaryColor = club?.primary_color ?? '#10b981'
+  const clubName = club?.name ?? 'FanPass'
 
-  const [{ data: pointsData }, { data: profile }] = await Promise.all([
-    supabase.from('fan_points').select('total_points, lifetime_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
-    supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single(),
-  ])
+  const { data: pointsData } = await supabase
+    .from('fan_points')
+    .select('total_points, lifetime_points')
+    .eq('user_id', user.id)
+    .eq('club_id', CLUB_ID)
+    .maybeSingle()
 
   const totalPoints = pointsData?.total_points ?? 0
   const lifetimePoints = pointsData?.lifetime_points ?? 0
-  const loyaltyLevel = getLoyaltyLevel(lifetimePoints)
-  const levelConfig = LOYALTY_CONFIG[loyaltyLevel]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] pb-20">
+    <div className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] pb-20" style={{ '--club-color': primaryColor } as React.CSSProperties}>
       {/* Header */}
       <header className="sticky top-0 z-40 bg-[#0f0f1a]/80 backdrop-blur-md border-b border-white/5">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl">🏟️</span>
-            <span className="font-black text-lg">FanPass</span>
+            <span className="font-black text-lg">{clubName}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span
-              className="text-xs font-bold px-2 py-0.5 rounded-full border"
-              style={{ color: levelConfig.color, borderColor: levelConfig.color + '40', background: levelConfig.color + '15' }}
-            >
-              {levelConfig.name}
-            </span>
-            <div className="bg-emerald-500/20 text-emerald-400 rounded-full px-3 py-1 text-sm font-bold">
-              {totalPoints.toLocaleString('fr-BE')} pts
-            </div>
+            <Link href="/notifications" className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors">
+              <Bell className="w-4 h-4 text-gray-400" />
+            </Link>
+          <FanPointsBadge
+            userId={user.id}
+            clubId={CLUB_ID}
+            initialPoints={totalPoints}
+            initialLifetime={lifetimePoints}
+            primaryColor={primaryColor}
+          />
           </div>
         </div>
       </header>

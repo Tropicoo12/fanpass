@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/Badge'
 import { Calendar, QrCode, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { CreateMatchButton } from './CreateMatchButton'
+import { MatchDeleteButton } from './MatchDeleteButton'
+import { SyncOddsButton } from './SyncOddsButton'
 import { redirect } from 'next/navigation'
 import { getAdminClubId } from '@/lib/club'
 
@@ -53,7 +55,10 @@ export default async function MatchesPage() {
           <h1 className="text-2xl font-black">Matchs</h1>
           <p className="text-gray-400 text-sm mt-1">Gérez les matchs et leurs QR codes</p>
         </div>
-        <CreateMatchButton clubId={CLUB_ID} />
+        <div className="flex gap-2">
+          <SyncOddsButton clubId={CLUB_ID} />
+          <CreateMatchButton clubId={CLUB_ID} />
+        </div>
       </div>
 
       {/* Stats row */}
@@ -98,10 +103,15 @@ export default async function MatchesPage() {
                     {new Intl.DateTimeFormat('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(match.match_date))}
                     {match.venue && <> · {match.venue}</>}
                   </div>
-                  <div className="flex gap-4 mt-2 text-xs text-gray-400">
+                  <div className="flex gap-4 mt-2 text-xs text-gray-400 flex-wrap">
                     <span>📲 {checkins} check-ins</span>
                     <span>⚡ {activations} activations</span>
                     <span>+{match.checkin_points} pts</span>
+                    {match.odds_home != null && (
+                      <span className="text-amber-400">
+                        {match.odds_home?.toFixed(2)} · {match.odds_draw?.toFixed(2)} · {match.odds_away?.toFixed(2)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 shrink-0">
@@ -113,6 +123,7 @@ export default async function MatchesPage() {
                     <QrCode className="w-3 h-3" />
                     QR code
                   </button>
+                  <MatchDeleteButton matchId={match.id} />
                 </div>
               </div>
             </Card>

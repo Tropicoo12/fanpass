@@ -37,13 +37,24 @@ export default function ScanPage() {
 
   useEffect(() => () => stopCamera(), [stopCamera])
 
+  function getOrCreateDeviceId(): string {
+    const key = 'fp_device_id'
+    let id = localStorage.getItem(key)
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem(key, id)
+    }
+    return id
+  }
+
   async function validateToken(token: string) {
     setState('processing')
     try {
       const geoPos = await new Promise<GeolocationPosition | null>(resolve => {
         if (!navigator.geolocation) return resolve(null)
-        navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { timeout: 3000 })
+        navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { timeout: 5000, enableHighAccuracy: true })
       })
+      const deviceId = getOrCreateDeviceId()
       const res = await fetch('/api/qr/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -51,6 +62,7 @@ export default function ScanPage() {
           token,
           lat: geoPos?.coords.latitude ?? null,
           lng: geoPos?.coords.longitude ?? null,
+          deviceId,
         }),
       })
       const data = await res.json()

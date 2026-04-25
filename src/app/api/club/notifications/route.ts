@@ -21,9 +21,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Champs obligatoires manquants' }, { status: 400 })
   }
 
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) {
+    console.error('[notifications POST] SUPABASE_SERVICE_ROLE_KEY is not set')
+    return NextResponse.json({ error: 'Configuration serveur manquante' }, { status: 500 })
+  }
+
   const admin = createAdminClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    serviceKey
   )
 
   // Count recipients based on audience
@@ -55,7 +61,10 @@ export async function POST(request: NextRequest) {
     sent_count: send_now ? recipientCount : 0,
   }).select().single()
 
-  if (error) return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  if (error) {
+    console.error('[notifications POST] insert error:', error.code, error.message)
+    return NextResponse.json({ error: `Erreur DB: ${error.message}` }, { status: 500 })
+  }
 
   return NextResponse.json({
     success: true,

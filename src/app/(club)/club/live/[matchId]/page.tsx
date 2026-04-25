@@ -5,6 +5,7 @@ import type { Database } from '@/types/database'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { LiveMatchControl } from './LiveMatchControl'
+import { LiveQRDisplay } from './LiveQRDisplay'
 
 export default async function LiveMatchPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params
@@ -55,6 +56,7 @@ export default async function LiveMatchPage({ params }: { params: Promise<{ matc
         ))}
       </div>
 
+      <LiveQRDisplay matchId={match.id} />
       <LiveMatchControl match={match} activations={activations ?? []} />
     </div>
   )

@@ -15,3 +15,10 @@ export async function getDefaultClubId(): Promise<string | null> {
   const { data } = await supabase.from('clubs').select('id').limit(1).single()
   return data?.id ?? null
 }
+
+/** Returns full club data including branding (single-club deployment). */
+export async function getDefaultClub(): Promise<{ id: string; primary_color: string; name: string } | null> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('clubs').select('id, name, primary_color').limit(1).single()
+  return data ?? null
+}

@@ -10,6 +10,9 @@ export async function POST(request: NextRequest) {
 
   const { activationId, answer } = await request.json()
   if (!activationId) return NextResponse.json({ error: 'Activation manquante' }, { status: 400 })
+  if (!answer || typeof answer !== 'string' || !answer.trim()) {
+    return NextResponse.json({ error: 'Réponse manquante' }, { status: 400 })
+  }
 
   const { data: activation } = await supabase
     .from('activations')
@@ -44,9 +47,15 @@ export async function POST(request: NextRequest) {
     ? (isCorrect ? activation.points_reward : 0)
     : activation.points_reward
 
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) {
+    console.error('[activations/respond] SUPABASE_SERVICE_ROLE_KEY is not set')
+    return NextResponse.json({ error: 'Configuration serveur manquante' }, { status: 500 })
+  }
+
   const admin = createAdminClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    serviceKey
   )
 
   const { error } = await admin.from('activation_responses').insert({
@@ -59,7 +68,8 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     if (error.code === '23505') return NextResponse.json({ error: 'Déjà répondu.' }, { status: 409 })
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    console.error('[activations/respond] insert error:', error.code, error.message)
+    return NextResponse.json({ error: `Erreur DB: ${error.message}` }, { status: 500 })
   }
 
   if (pointsEarned > 0) {

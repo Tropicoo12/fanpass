@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Fan routes: require auth
-  const fanRoutes = ['/home', '/scan', '/pronostics', '/rewards', '/sponsors', '/classement']
+  const fanRoutes = ['/home', '/scan', '/pronostics', '/rewards', '/sponsors', '/classement', '/activations', '/notifications']
   const isFanRoute = fanRoutes.some(r => pathname.startsWith(r))
   if (isFanRoute && !user) {
     return NextResponse.redirect(new URL('/auth/login?next=' + encodeURIComponent(pathname), request.url))

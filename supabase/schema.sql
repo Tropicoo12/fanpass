@@ -297,12 +297,12 @@ create table if not exists activations (
 create table if not exists activation_responses (
   id uuid primary key default uuid_generate_v4(),
   created_at timestamptz default now(),
-  user_id uuid not null references profiles(id) on delete cascade,
   activation_id uuid not null references activations(id) on delete cascade,
-  answer text,
+  user_id uuid not null references profiles(id) on delete cascade,
+  answer text not null,
+  points_earned int default 0,
   is_correct boolean,
-  points_earned int not null default 0,
-  unique(user_id, activation_id)
+  unique(activation_id, user_id)
 );
 
 -- ============================================================
@@ -505,11 +505,17 @@ create policy "activations_update" on activations for update using (auth.uid() i
 ));
 
 -- Activation responses
+drop policy if exists "Réponses activation lisibles" on activation_responses;
+drop policy if exists "Réponses activation créables" on activation_responses;
 create policy "activation_responses_select" on activation_responses for select using (auth.uid() = user_id);
 create policy "activation_responses_insert" on activation_responses for insert with check (auth.uid() = user_id);
 
--- Notifications (club admin only)
+-- Notifications (club admin + fans can read sent ones)
 create policy "notifications_select" on notifications for select using (
+  sent_at is not null
+  or auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
+);
+create policy "notifications_insert" on notifications for insert with check (
   auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
 );
 
@@ -526,3 +532,24 @@ values (
   'Stade Roi Baudouin',
   'Bruxelles'
 ) on conflict (slug) do nothing;
+
+-- ============================================================
+-- MIGRATIONS — Odds API + Betting
+-- Run after initial schema if tables already exist
+-- ============================================================
+
+alter table checkins
+  add column if not exists device_id text;
+
+alter table matches
+  add column if not exists external_id text unique,
+  add column if not exists odds_home numeric(4,2),
+  add column if not exists odds_draw numeric(4,2),
+  add column if not exists odds_away numeric(4,2);
+
+alter table pronostics
+  add column if not exists points_bet int,
+  add column if not exists odds_multiplier numeric(5,2);
+
+-- Enable realtime for live points badge
+alter publication supabase_realtime add table fan_points;
