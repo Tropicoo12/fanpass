@@ -553,3 +553,56 @@ alter table pronostics
 
 -- Enable realtime for live points badge
 alter publication supabase_realtime add table fan_points;
+
+-- ============================================================
+-- MATCH MARKETS & MARKET BETS
+-- Run in Supabase SQL editor to add prediction betting
+-- ============================================================
+create table if not exists match_markets (
+  id uuid primary key default uuid_generate_v4(),
+  match_id uuid references matches(id) on delete cascade not null,
+  club_id uuid references clubs(id) on delete cascade not null,
+  market_type text not null default 'h2h',
+  title text not null,
+  options jsonb not null default '[]',
+  is_active boolean not null default true,
+  min_bet int not null default 25,
+  max_bet int not null default 500,
+  correct_answer text,
+  status text not null default 'open',
+  created_at timestamptz default now()
+);
+
+create table if not exists market_bets (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  market_id uuid references match_markets(id) on delete cascade not null,
+  match_id uuid references matches(id) not null,
+  club_id uuid references clubs(id) not null,
+  selection text not null,
+  odds_at_bet numeric(6,2) not null,
+  points_bet int not null check (points_bet > 0),
+  status text not null default 'pending',
+  points_earned int,
+  created_at timestamptz default now(),
+  unique (user_id, market_id)
+);
+
+alter table match_markets enable row level security;
+alter table market_bets enable row level security;
+
+drop policy if exists "match_markets_select" on match_markets;
+drop policy if exists "match_markets_insert" on match_markets;
+drop policy if exists "match_markets_update" on match_markets;
+create policy "match_markets_select" on match_markets for select using (true);
+create policy "match_markets_insert" on match_markets for insert with check (
+  auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
+);
+create policy "match_markets_update" on match_markets for update using (
+  auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
+);
+
+drop policy if exists "market_bets_select" on market_bets;
+drop policy if exists "market_bets_insert" on market_bets;
+create policy "market_bets_select" on market_bets for select using (auth.uid() = user_id);
+create policy "market_bets_insert" on market_bets for insert with check (auth.uid() = user_id);

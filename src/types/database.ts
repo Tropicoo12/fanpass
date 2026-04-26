@@ -381,6 +381,75 @@ export type Database = {
         Update: { is_correct?: boolean | null; points_earned?: number }
         Relationships: []
       }
+      match_markets: {
+        Row: {
+          id: string
+          match_id: string
+          club_id: string
+          market_type: string
+          title: string
+          options: Json
+          is_active: boolean
+          min_bet: number
+          max_bet: number
+          correct_answer: string | null
+          status: 'open' | 'closed' | 'settled'
+          created_at: string
+        }
+        Insert: {
+          match_id: string
+          club_id: string
+          market_type?: string
+          title: string
+          options?: Json
+          is_active?: boolean
+          min_bet?: number
+          max_bet?: number
+          correct_answer?: string | null
+          status?: string
+        }
+        Update: {
+          title?: string
+          options?: Json
+          is_active?: boolean
+          min_bet?: number
+          max_bet?: number
+          correct_answer?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      market_bets: {
+        Row: {
+          id: string
+          user_id: string
+          market_id: string
+          match_id: string
+          club_id: string
+          selection: string
+          odds_at_bet: number
+          points_bet: number
+          status: 'pending' | 'won' | 'lost'
+          points_earned: number | null
+          created_at: string
+        }
+        Insert: {
+          user_id: string
+          market_id: string
+          match_id: string
+          club_id: string
+          selection: string
+          odds_at_bet: number
+          points_bet: number
+          status?: string
+          points_earned?: number | null
+        }
+        Update: {
+          status?: string
+          points_earned?: number | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           id: string
@@ -455,3 +524,6 @@ export type Activation = Database['public']['Tables']['activations']['Row']
 export type ActivationResponse = Database['public']['Tables']['activation_responses']['Row']
 export type Notification = Database['public']['Tables']['notifications']['Row']
 export type LeaderboardEntry = Database['public']['Views']['leaderboard']['Row']
+export type MatchMarket = Database['public']['Tables']['match_markets']['Row']
+export type MarketBet = Database['public']['Tables']['market_bets']['Row']
+export type MarketOption = { name: string; odds: number }

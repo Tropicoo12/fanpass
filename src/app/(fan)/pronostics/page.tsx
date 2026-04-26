@@ -1,11 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import type { Database, Match, Pronostic } from '@/types/database'
+import type { Database, Pronostic, MarketOption } from '@/types/database'
 import { PredictionForm } from './PredictionForm'
+import { MarketBetCard } from './MarketBetCard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { Trophy } from 'lucide-react'
+import { Trophy, TrendingUp } from 'lucide-react'
 import { getDefaultClubId } from '@/lib/club'
 
 function fmtDate(iso: string) {
@@ -32,8 +33,41 @@ export default async function PronosticsPage() {
   ])
 
   const userPoints = pointsData?.total_points ?? 0
+  const matchIds = openMatches?.map(m => m.id) ?? []
 
-  // Map existing pronostics by match_id
+  // Fetch active markets for open matches + user's bets
+  const [{ data: activeMarkets }, { data: userBets }] = await Promise.all([
+    matchIds.length > 0
+      ? supabase.from('match_markets').select('*').in('match_id', matchIds).eq('is_active', true).order('created_at')
+      : { data: [] },
+    matchIds.length > 0
+      ? supabase.from('market_bets').select('*').eq('user_id', user.id).in('match_id', matchIds)
+      : { data: [] },
+  ])
+
+  const betsByMarket: Record<string, { selection: string; odds_at_bet: number; points_bet: number; status: 'pending' | 'won' | 'lost'; points_earned: number | null }> = {}
+  userBets?.forEach(b => { betsByMarket[b.market_id] = b as any })
+
+  const marketsByMatch: Record<string, Array<{
+    id: string; title: string; market_type: string; options: MarketOption[];
+    status: 'open' | 'closed' | 'settled'; min_bet: number; max_bet: number;
+    myBet: typeof betsByMarket[string] | null
+  }>> = {}
+  activeMarkets?.forEach(m => {
+    if (!marketsByMatch[m.match_id]) marketsByMatch[m.match_id] = []
+    marketsByMatch[m.match_id].push({
+      id: m.id,
+      title: m.title,
+      market_type: m.market_type,
+      options: m.options as MarketOption[],
+      status: m.status as 'open' | 'closed' | 'settled',
+      min_bet: m.min_bet,
+      max_bet: m.max_bet,
+      myBet: betsByMarket[m.id] ?? null,
+    })
+  })
+
+  // Map existing score pronostics by match_id
   const myPronosByMatch: Record<string, Pronostic> = {}
   history?.forEach(p => { myPronosByMatch[p.match_id] = p })
 
@@ -41,11 +75,13 @@ export default async function PronosticsPage() {
   const wonCount = history?.filter(p => p.result && p.result !== 'wrong').length ?? 0
   const totalPts = history?.reduce((acc, p) => acc + (p.points_earned ?? 0), 0) ?? 0
 
+  const hasAnyContent = (openMatches?.length ?? 0) > 0
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black">Pronostics</h1>
-        <p className="text-gray-400 text-sm mt-1">Prédit les scores et gagne des points</p>
+        <p className="text-gray-400 text-sm mt-1">Prédit les scores et mise tes points</p>
       </div>
 
       {/* Stats strip */}
@@ -62,32 +98,54 @@ export default async function PronosticsPage() {
         ))}
       </div>
 
-      {/* Open matches */}
-      {openMatches && openMatches.length > 0 ? (
-        <div>
-          <h2 className="font-bold mb-3">Matchs ouverts</h2>
-          <div className="space-y-4">
-            {openMatches.map(match => (
-              <PredictionForm
-                key={match.id}
-                match={match}
-                existing={myPronosByMatch[match.id] ?? null}
-                userPoints={userPoints}
-              />
-            ))}
-          </div>
-        </div>
-      ) : (
+      {!hasAnyContent && (
         <Card variant="dark" className="text-center py-8">
           <Trophy className="w-10 h-10 text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400">Aucun match ouvert aux pronostics pour le moment</p>
         </Card>
       )}
 
+      {/* Open matches: markets + score prediction */}
+      {openMatches && openMatches.map(match => {
+        const matchMarkets = marketsByMatch[match.id] ?? []
+        const hasMarkets = matchMarkets.length > 0
+        return (
+          <div key={match.id} className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <p className="font-bold">{match.home_team} vs {match.away_team}</p>
+                <p className="text-xs text-gray-500">{fmtDate(match.match_date)}</p>
+              </div>
+              {match.status === 'live' && <Badge variant="success">Live</Badge>}
+            </div>
+
+            {/* Prediction markets */}
+            {hasMarkets && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Marchés de paris</p>
+                </div>
+                {matchMarkets.map(m => (
+                  <MarketBetCard key={m.id} market={m} userPoints={userPoints} />
+                ))}
+              </div>
+            )}
+
+            {/* Score prediction */}
+            <PredictionForm
+              match={match}
+              existing={myPronosByMatch[match.id] ?? null}
+              userPoints={userPoints}
+            />
+          </div>
+        )
+      })}
+
       {/* History */}
       {history && history.length > 0 && (
         <div>
-          <h2 className="font-bold mb-3">Historique</h2>
+          <h2 className="font-bold mb-3">Historique scores</h2>
           <div className="space-y-2">
             {history.map(p => {
               const match = (p as any).matches
