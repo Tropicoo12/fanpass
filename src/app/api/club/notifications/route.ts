@@ -41,11 +41,11 @@ export async function POST(request: NextRequest) {
     const { count } = await admin.from('checkins').select('*', { count: 'exact', head: true }).eq('match_id', match_id)
     recipientCount = count ?? 0
   } else if (audience === 'gold_plus') {
-    // fans with lifetime_points >= 2500
+    // fans with enough current points for gold-plus targeting
     const { count } = await admin.from('fan_points')
       .select('*', { count: 'exact', head: true })
       .eq('club_id', club_id)
-      .gte('lifetime_points', 2500)
+      .gte('total_points', 2500)
     recipientCount = count ?? 0
   }
 

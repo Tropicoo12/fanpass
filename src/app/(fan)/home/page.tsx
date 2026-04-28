@@ -5,12 +5,16 @@ import { redirect } from 'next/navigation'
 import { ScanQrCode, Trophy, Gift, ChevronRight, Zap, Star } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import type { Database } from '@/types/database'
+import type { Database, Match, Pronostic } from '@/types/database'
 import { getLoyaltyLevel, getLoyaltyProgress, LOYALTY_CONFIG } from '@/types/database'
 import { getDefaultClub } from '@/lib/club'
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+}
+
+type RecentPronostic = Pronostic & {
+  matches: Pick<Match, 'home_team' | 'away_team' | 'match_date' | 'status' | 'home_score' | 'away_score'> | null
 }
 
 export default async function HomePage() {
@@ -38,7 +42,7 @@ export default async function HomePage() {
     { data: myCheckins },
   ] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', user.id).single(),
-    supabase.from('fan_points').select('total_points, season_points, lifetime_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
+    supabase.from('fan_points').select('total_points, season_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
     supabase.from('matches').select('*').eq('club_id', CLUB_ID).in('status', ['upcoming', 'live']).order('match_date').limit(1).maybeSingle(),
     supabase.from('pronostics').select('*, matches(home_team, away_team, match_date, status, home_score, away_score)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
     supabase.from('activations').select('*').eq('status', 'active').eq('club_id', CLUB_ID).limit(3),
@@ -48,12 +52,12 @@ export default async function HomePage() {
 
   const totalPoints = pointsData?.total_points ?? 0
   const seasonPoints = pointsData?.season_points ?? 0
-  const lifetimePoints = pointsData?.lifetime_points ?? 0
+  const lifetimePoints = totalPoints
   const loyaltyLevel = getLoyaltyLevel(lifetimePoints)
   const levelConfig = LOYALTY_CONFIG[loyaltyLevel]
-  const nextLevel = LOYALTY_CONFIG[Math.min(loyaltyLevel + 1, 4) as 0]
   const progress = getLoyaltyProgress(lifetimePoints)
   const ptsToNext = loyaltyLevel < 4 ? LOYALTY_CONFIG[Math.min(loyaltyLevel + 1, 4) as keyof typeof LOYALTY_CONFIG].min - lifetimePoints : 0
+  const recentPronosticItems = (recentPronostics ?? []) as unknown as RecentPronostic[]
 
   const checkedInMatchIds = new Set(myCheckins?.map(c => c.match_id) ?? [])
   const alreadyCheckedIn = nextMatch ? checkedInMatchIds.has(nextMatch.id) : false
@@ -234,7 +238,7 @@ export default async function HomePage() {
       </div>
 
       {/* Recent Predictions */}
-      {recentPronostics && recentPronostics.length > 0 && (
+      {recentPronosticItems.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold">Mes pronostics récents</h2>
@@ -243,8 +247,8 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="space-y-2">
-            {recentPronostics.map((p) => {
-              const match = (p as any).matches
+            {recentPronosticItems.map((p) => {
+              const match = p.matches
               return (
                 <Card key={p.id} variant="dark">
                   <div className="flex items-center justify-between gap-3">

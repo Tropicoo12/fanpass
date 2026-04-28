@@ -35,13 +35,13 @@ export default async function FanLayout({
 
   const { data: pointsData } = await supabase
     .from('fan_points')
-    .select('total_points, lifetime_points')
+    .select('total_points')
     .eq('user_id', user.id)
     .eq('club_id', CLUB_ID)
     .maybeSingle()
 
   const totalPoints = pointsData?.total_points ?? 0
-  const lifetimePoints = pointsData?.lifetime_points ?? 0
+  const lifetimePoints = totalPoints
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] pb-20" style={{ '--club-color': primaryColor } as React.CSSProperties}>

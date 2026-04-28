@@ -31,13 +31,13 @@ export async function POST(request: NextRequest) {
 
   const { data: fanPoints } = await supabase
     .from('fan_points')
-    .select('total_points, lifetime_points')
+    .select('total_points')
     .eq('user_id', user.id)
     .eq('club_id', reward.club_id)
     .maybeSingle()
 
   const currentPoints = fanPoints?.total_points ?? 0
-  const lifetimePts = fanPoints?.lifetime_points ?? 0
+  const lifetimePts = currentPoints
 
   if (currentPoints < reward.points_cost) {
     return NextResponse.json({

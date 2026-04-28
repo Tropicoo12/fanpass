@@ -46,16 +46,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const body = await request.json()
   const { matchId } = await params
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) {
+    console.error('[matches PATCH] SUPABASE_SERVICE_ROLE_KEY is not set')
+    return NextResponse.json({ error: 'Configuration serveur manquante' }, { status: 500 })
+  }
 
   const admin = createAdminClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    serviceKey
   )
 
   const updatePayload: MatchUpdate = {}
   if (body.status !== undefined) updatePayload.status = body.status
   if (body.home_score !== undefined) updatePayload.home_score = body.home_score
   if (body.away_score !== undefined) updatePayload.away_score = body.away_score
+  if (body.odds_home !== undefined) updatePayload.odds_home = normalizeOdds(body.odds_home)
+  if (body.odds_draw !== undefined) updatePayload.odds_draw = normalizeOdds(body.odds_draw)
+  if (body.odds_away !== undefined) updatePayload.odds_away = normalizeOdds(body.odds_away)
+
+  if (Object.keys(updatePayload).length === 0) {
+    return NextResponse.json({ error: 'Aucun champ a mettre a jour' }, { status: 400 })
+  }
 
   const { data, error } = await admin
     .from('matches')
@@ -72,6 +84,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   return NextResponse.json({ success: true, match: data })
+}
+
+function normalizeOdds(value: unknown): number | null {
+  if (value === null || value === '') return null
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 1 || numeric > 99) return null
+  return Number(numeric.toFixed(2))
 }
 
 async function gradePronostics(

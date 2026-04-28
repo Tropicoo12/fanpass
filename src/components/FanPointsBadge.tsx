@@ -22,6 +22,19 @@ export function FanPointsBadge({ userId, clubId, initialPoints, initialLifetime,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
+    supabase
+      .from('fan_points')
+      .select('total_points')
+      .eq('user_id', userId)
+      .eq('club_id', clubId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setTotalPoints(data.total_points)
+          setLifetimePoints(data.total_points)
+        }
+      })
+
     const channel = supabase
       .channel('fan-points')
       .on(
@@ -37,7 +50,7 @@ export function FanPointsBadge({ userId, clubId, initialPoints, initialLifetime,
             const row = payload.new as Database['public']['Tables']['fan_points']['Row']
             if (row.club_id === clubId) {
               setTotalPoints(row.total_points)
-              setLifetimePoints(row.lifetime_points)
+              setLifetimePoints(row.lifetime_points ?? row.total_points)
             }
           }
         }
