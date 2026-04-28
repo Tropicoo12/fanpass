@@ -150,6 +150,45 @@ create table if not exists pronostics (
 );
 
 -- ============================================================
+-- MATCH MARKETS (pre-match and live betting)
+-- ============================================================
+create table if not exists match_markets (
+  id uuid primary key default uuid_generate_v4(),
+  created_at timestamptz default now(),
+  match_id uuid not null references matches(id) on delete cascade,
+  club_id uuid not null references clubs(id) on delete cascade,
+  market_key text not null,
+  market_label text not null,
+  market_emoji text not null default '🎯',
+  options jsonb not null default '[]',
+  is_published boolean not null default false,
+  is_settled boolean not null default false,
+  closes_at timestamptz,
+  correct_option text,
+  bet_count int not null default 0
+);
+
+-- ============================================================
+-- MATCH BETS
+-- ============================================================
+create table if not exists match_bets (
+  id uuid primary key default uuid_generate_v4(),
+  created_at timestamptz default now(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  match_market_id uuid not null references match_markets(id) on delete cascade,
+  match_id uuid not null references matches(id) on delete cascade,
+  club_id uuid not null references clubs(id) on delete cascade,
+  selected_option text not null,
+  points_staked int not null check (points_staked > 0),
+  odds numeric(5,2) not null,
+  potential_win int not null,
+  points_won int,
+  is_settled boolean not null default false,
+  is_correct boolean,
+  unique(user_id, match_market_id)
+);
+
+-- ============================================================
 -- FAN POINTS
 -- ============================================================
 create table if not exists fan_points (
@@ -404,6 +443,8 @@ join profiles p on p.id = fp.user_id;
 alter table profiles enable row level security;
 alter table clubs enable row level security;
 alter table matches enable row level security;
+alter table match_markets enable row level security;
+alter table match_bets enable row level security;
 alter table checkins enable row level security;
 alter table pronostics enable row level security;
 alter table fan_points enable row level security;
@@ -451,6 +492,28 @@ drop policy if exists "Pronostic modifiable" on pronostics;
 create policy "pronostics_select" on pronostics for select using (auth.uid() = user_id);
 create policy "pronostics_insert" on pronostics for insert with check (auth.uid() = user_id);
 create policy "pronostics_update" on pronostics for update using (auth.uid() = user_id);
+
+-- Match markets (public read, club_admin write)
+drop policy if exists "match_markets_select" on match_markets;
+drop policy if exists "match_markets_insert" on match_markets;
+drop policy if exists "match_markets_update" on match_markets;
+drop policy if exists "match_markets_delete" on match_markets;
+create policy "match_markets_select" on match_markets for select using (true);
+create policy "match_markets_insert" on match_markets for insert with check (
+  auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
+);
+create policy "match_markets_update" on match_markets for update using (
+  auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
+);
+create policy "match_markets_delete" on match_markets for delete using (
+  auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
+);
+
+-- Match bets (fans manage their own bets)
+drop policy if exists "match_bets_select" on match_bets;
+drop policy if exists "match_bets_insert" on match_bets;
+create policy "match_bets_select" on match_bets for select using (auth.uid() = user_id);
+create policy "match_bets_insert" on match_bets for insert with check (auth.uid() = user_id);
 
 -- Fan points
 drop policy if exists "Points lisibles" on fan_points;
@@ -543,9 +606,20 @@ alter table checkins
 
 alter table matches
   add column if not exists external_id text unique,
-  add column if not exists odds_home numeric(4,2),
-  add column if not exists odds_draw numeric(4,2),
-  add column if not exists odds_away numeric(4,2);
+  add column if not exists odds_home numeric(5,2),
+  add column if not exists odds_draw numeric(5,2),
+  add column if not exists odds_away numeric(5,2);
+
+alter table matches
+  alter column odds_home type numeric(5,2),
+  alter column odds_draw type numeric(5,2),
+  alter column odds_away type numeric(5,2);
+
+alter table clubs
+  add column if not exists team_name text,
+  add column if not exists football_data_team_id int,
+  add column if not exists competition_code text,
+  add column if not exists matches_synced_at timestamptz;
 
 alter table pronostics
   add column if not exists points_bet int,

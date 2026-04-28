@@ -2,10 +2,9 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import type { Database } from '@/types/database'
-import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { LiveMatchControl } from './LiveMatchControl'
 import { LiveQRDisplay } from './LiveQRDisplay'
+import { MatchTabs } from './MatchTabs'
 
 export default async function LiveMatchPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params
@@ -24,8 +23,9 @@ export default async function LiveMatchPage({ params }: { params: Promise<{ matc
 
   if (!match) notFound()
 
-  const [{ data: activations }, { data: checkinCount }, { data: pronoCount }] = await Promise.all([
+  const [{ data: activations }, { data: markets }, { count: checkinCount }, { count: pronoCount }] = await Promise.all([
     supabase.from('activations').select('*').eq('match_id', match.id).order('created_at', { ascending: false }),
+    supabase.from('match_markets').select('*').eq('match_id', match.id).order('created_at', { ascending: false }),
     supabase.from('checkins').select('*', { count: 'exact', head: true }).eq('match_id', match.id),
     supabase.from('pronostics').select('*', { count: 'exact', head: true }).eq('match_id', match.id),
   ])
@@ -42,22 +42,14 @@ export default async function LiveMatchPage({ params }: { params: Promise<{ matc
         </Badge>
       </div>
 
-      {/* Match stats */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: 'Check-ins', value: checkinCount?.toString() ?? '0' },
-          { label: 'Pronostics', value: pronoCount?.toString() ?? '0' },
-          { label: 'Activations', value: activations?.length.toString() ?? '0' },
-        ].map(s => (
-          <Card key={s.label} variant="dark" className="text-center">
-            <p className="text-xl font-black">{s.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
-          </Card>
-        ))}
-      </div>
-
       <LiveQRDisplay matchId={match.id} />
-      <LiveMatchControl match={match} activations={activations ?? []} />
+      <MatchTabs
+        match={match}
+        activations={activations ?? []}
+        markets={markets ?? []}
+        checkinCount={checkinCount ?? 0}
+        pronoCount={pronoCount ?? 0}
+      />
     </div>
   )
 }

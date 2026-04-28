@@ -23,12 +23,12 @@ export default async function RewardsPage() {
 
   const [{ data: rewards }, { data: pointsData }, { data: myRedemptions }] = await Promise.all([
     supabase.from('rewards').select('*').eq('club_id', CLUB_ID).eq('is_active', true).order('sort_order'),
-    supabase.from('fan_points').select('total_points, lifetime_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
+    supabase.from('fan_points').select('total_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
     supabase.from('redemptions').select('reward_id, status').eq('user_id', user.id),
   ])
 
   const totalPoints = pointsData?.total_points ?? 0
-  const lifetimePoints = pointsData?.lifetime_points ?? 0
+  const lifetimePoints = totalPoints
   const loyaltyLevel = getLoyaltyLevel(lifetimePoints)
   const levelConfig = LOYALTY_CONFIG[loyaltyLevel]
 

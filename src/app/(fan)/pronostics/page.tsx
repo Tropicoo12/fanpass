@@ -1,8 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import type { Database, Match, Pronostic } from '@/types/database'
+import type { Database, Match, MatchBet, MatchMarket, Pronostic } from '@/types/database'
 import { PredictionForm } from './PredictionForm'
+import { MarketBetCard } from './MarketBetCard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Trophy } from 'lucide-react'
@@ -10,6 +11,10 @@ import { getDefaultClubId } from '@/lib/club'
 
 function fmtDate(iso: string) {
   return new Intl.DateTimeFormat('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+}
+
+type PronosticHistoryItem = Pronostic & {
+  matches: Pick<Match, 'home_team' | 'away_team' | 'match_date' | 'status' | 'home_score' | 'away_score'> | null
 }
 
 export default async function PronosticsPage() {
@@ -32,14 +37,45 @@ export default async function PronosticsPage() {
   ])
 
   const userPoints = pointsData?.total_points ?? 0
+  const historyItems = (history ?? []) as unknown as PronosticHistoryItem[]
+  const openMatchIds = openMatches?.map(match => match.id) ?? []
+  const [{ data: publishedMarkets }, { data: userBets }] = await Promise.all([
+    openMatchIds.length
+      ? supabase
+        .from('match_markets')
+        .select('*')
+        .in('match_id', openMatchIds)
+        .eq('is_published', true)
+        .eq('is_settled', false)
+        .order('created_at', { ascending: false })
+      : { data: [] as MatchMarket[] },
+    openMatchIds.length
+      ? supabase
+        .from('match_bets')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('match_id', openMatchIds)
+      : { data: [] as MatchBet[] },
+  ])
+
+  const marketsByMatch: Record<string, MatchMarket[]> = {}
+  publishedMarkets?.forEach(market => {
+    if (market.closes_at && new Date(market.closes_at) <= new Date()) return
+    marketsByMatch[market.match_id] = [...(marketsByMatch[market.match_id] ?? []), market]
+  })
+
+  const betsByMatch: Record<string, MatchBet[]> = {}
+  userBets?.forEach(bet => {
+    betsByMatch[bet.match_id] = [...(betsByMatch[bet.match_id] ?? []), bet]
+  })
 
   // Map existing pronostics by match_id
   const myPronosByMatch: Record<string, Pronostic> = {}
-  history?.forEach(p => { myPronosByMatch[p.match_id] = p })
+  historyItems.forEach(p => { myPronosByMatch[p.match_id] = p })
 
-  const pendingCount = history?.filter(p => p.result === null).length ?? 0
-  const wonCount = history?.filter(p => p.result && p.result !== 'wrong').length ?? 0
-  const totalPts = history?.reduce((acc, p) => acc + (p.points_earned ?? 0), 0) ?? 0
+  const pendingCount = historyItems.filter(p => p.result === null).length
+  const wonCount = historyItems.filter(p => p.result && p.result !== 'wrong').length
+  const totalPts = historyItems.reduce((acc, p) => acc + (p.points_earned ?? 0), 0)
 
   return (
     <div className="space-y-6">
@@ -68,12 +104,19 @@ export default async function PronosticsPage() {
           <h2 className="font-bold mb-3">Matchs ouverts</h2>
           <div className="space-y-4">
             {openMatches.map(match => (
-              <PredictionForm
-                key={match.id}
-                match={match}
-                existing={myPronosByMatch[match.id] ?? null}
-                userPoints={userPoints}
-              />
+              <div key={match.id} className="space-y-3">
+                <PredictionForm
+                  match={match}
+                  existing={myPronosByMatch[match.id] ?? null}
+                  userPoints={userPoints}
+                />
+                <MarketBetCard
+                  match={match}
+                  markets={marketsByMatch[match.id] ?? []}
+                  userBets={betsByMatch[match.id] ?? []}
+                  userPoints={userPoints}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -85,12 +128,12 @@ export default async function PronosticsPage() {
       )}
 
       {/* History */}
-      {history && history.length > 0 && (
+      {historyItems.length > 0 && (
         <div>
           <h2 className="font-bold mb-3">Historique</h2>
           <div className="space-y-2">
-            {history.map(p => {
-              const match = (p as any).matches
+            {historyItems.map(p => {
+              const match = p.matches
               return (
                 <Card key={p.id} variant="dark">
                   <div className="flex items-center justify-between gap-3">

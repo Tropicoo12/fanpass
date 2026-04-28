@@ -78,9 +78,39 @@ export type Database = {
           stadium_name: string | null
           city: string | null
           country: string
+          team_name: string | null
+          football_data_team_id: number | null
+          competition_code: string | null
+          matches_synced_at: string | null
         }
-        Insert: { name: string; slug: string; logo_url?: string | null; primary_color?: string; secondary_color?: string; stadium_name?: string | null; city?: string | null }
-        Update: { name?: string; slug?: string; logo_url?: string | null; primary_color?: string; secondary_color?: string; stadium_name?: string | null; city?: string | null }
+        Insert: {
+          name: string
+          slug: string
+          logo_url?: string | null
+          primary_color?: string
+          secondary_color?: string
+          stadium_name?: string | null
+          city?: string | null
+          country?: string
+          team_name?: string | null
+          football_data_team_id?: number | null
+          competition_code?: string | null
+          matches_synced_at?: string | null
+        }
+        Update: {
+          name?: string
+          slug?: string
+          logo_url?: string | null
+          primary_color?: string
+          secondary_color?: string
+          stadium_name?: string | null
+          city?: string | null
+          country?: string
+          team_name?: string | null
+          football_data_team_id?: number | null
+          competition_code?: string | null
+          matches_synced_at?: string | null
+        }
         Relationships: []
       }
       matches: {
@@ -140,6 +170,83 @@ export type Database = {
           odds_home?: number | null
           odds_draw?: number | null
           odds_away?: number | null
+        }
+        Relationships: []
+      }
+      match_markets: {
+        Row: {
+          id: string
+          created_at: string
+          match_id: string
+          club_id: string
+          market_key: string
+          market_label: string
+          market_emoji: string
+          options: Json
+          is_published: boolean
+          is_settled: boolean
+          closes_at: string | null
+          correct_option: string | null
+          bet_count: number
+        }
+        Insert: {
+          match_id: string
+          club_id: string
+          market_key: string
+          market_label: string
+          market_emoji?: string
+          options?: Json
+          is_published?: boolean
+          is_settled?: boolean
+          closes_at?: string | null
+          correct_option?: string | null
+          bet_count?: number
+        }
+        Update: {
+          market_label?: string
+          market_emoji?: string
+          options?: Json
+          is_published?: boolean
+          is_settled?: boolean
+          closes_at?: string | null
+          correct_option?: string | null
+          bet_count?: number
+        }
+        Relationships: []
+      }
+      match_bets: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          match_market_id: string
+          match_id: string
+          club_id: string
+          selected_option: string
+          points_staked: number
+          odds: number
+          potential_win: number
+          points_won: number | null
+          is_settled: boolean
+          is_correct: boolean | null
+        }
+        Insert: {
+          user_id: string
+          match_market_id: string
+          match_id: string
+          club_id: string
+          selected_option: string
+          points_staked: number
+          odds: number
+          potential_win: number
+          points_won?: number | null
+          is_settled?: boolean
+          is_correct?: boolean | null
+        }
+        Update: {
+          points_won?: number | null
+          is_settled?: boolean
+          is_correct?: boolean | null
         }
         Relationships: []
       }
@@ -441,6 +548,8 @@ export type Database = {
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Club = Database['public']['Tables']['clubs']['Row']
 export type Match = Database['public']['Tables']['matches']['Row']
+export type MatchMarket = Database['public']['Tables']['match_markets']['Row']
+export type MatchBet = Database['public']['Tables']['match_bets']['Row']
 export type Checkin = Database['public']['Tables']['checkins']['Row']
 export type Pronostic = Database['public']['Tables']['pronostics']['Row']
 export type FanPoints = Database['public']['Tables']['fan_points']['Row']
