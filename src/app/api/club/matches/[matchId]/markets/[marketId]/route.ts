@@ -1,111 +1,118 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import type { Database, MarketOption } from '@/types/database'
+import { assertClubAdmin } from '@/lib/club'
+import type { Database } from '@/types/database'
 
-async function assertClubAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  return p && ['club_admin', 'super_admin'].includes(p.role) ? user : null
+function adminClient() {
+  return createAdminClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ matchId: string; marketId: string }> }
-) {
-  const { marketId } = await params
-  const supabase = await createClient()
-  if (!await assertClubAdmin(supabase)) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ matchId: string; marketId: string }> }) {
+  const auth = await assertClubAdmin()
+  if (!auth) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
 
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceKey) return NextResponse.json({ error: 'Config manquante' }, { status: 500 })
+  const { marketId } = await params
+  const admin = adminClient()
+
+  // Verify the market belongs to the admin's club
+  if (auth.role !== 'super_admin') {
+    const { data: existing } = await admin
+      .from('match_markets')
+      .select('club_id')
+      .eq('id', marketId)
+      .single()
+    if (!existing) return NextResponse.json({ error: 'Marché introuvable' }, { status: 404 })
+    if (existing.club_id !== auth.clubId)
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+  }
 
   const body = await request.json()
-  const { is_active, status, correct_answer, title, options, min_bet, max_bet } = body
-
-  const admin = createAdminClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceKey
-  )
-
   const update: Database['public']['Tables']['match_markets']['Update'] = {}
-  if (title !== undefined) update.title = title
-  if (options !== undefined) update.options = options
-  if (is_active !== undefined) update.is_active = is_active
-  if (min_bet !== undefined) update.min_bet = min_bet
-  if (max_bet !== undefined) update.max_bet = max_bet
-  if (status !== undefined) update.status = status
-  if (correct_answer !== undefined) update.correct_answer = correct_answer
+  if (body.is_published !== undefined) update.is_published = body.is_published
+  if (body.correct_option !== undefined) update.correct_option = body.correct_option
+  if (body.is_settled !== undefined) update.is_settled = body.is_settled
 
-  const { data: market, error: updateError } = await admin
+  const { data: market, error } = await admin
     .from('match_markets')
     .update(update)
     .eq('id', marketId)
     .select()
     .single()
 
-  if (updateError) {
-    console.error('[markets PATCH]', updateError.code, updateError.message)
-    return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (error) {
+    console.error('[markets PATCH]', error.code, error.message)
+    return NextResponse.json({ error: 'Erreur mise à jour' }, { status: 500 })
   }
 
-  // If settling, award points to winners and mark losers
-  if (status === 'settled' && correct_answer) {
-    const { data: bets } = await admin
-      .from('market_bets')
-      .select('*')
-      .eq('market_id', marketId)
-      .eq('status', 'pending')
-
-    if (bets && bets.length > 0) {
-      for (const bet of bets) {
-        const won = bet.selection === correct_answer
-        const pointsEarned = won ? Math.round(bet.points_bet * bet.odds_at_bet) : 0
-
-        await admin.from('market_bets').update({
-          status: won ? 'won' : 'lost',
-          points_earned: pointsEarned,
-        }).eq('id', bet.id)
-
-        if (won && pointsEarned > 0) {
-          const optionsArr = (market.options as MarketOption[]) ?? []
-          const opt = optionsArr.find(o => o.name === correct_answer)
-          await admin.rpc('award_points', {
-            p_user_id: bet.user_id,
-            p_club_id: bet.club_id,
-            p_amount: pointsEarned,
-            p_type: 'pronostic',
-            p_reference_id: bet.id,
-            p_description: `Pari gagné : ${correct_answer} (x${opt?.odds?.toFixed(2) ?? '?'})`,
-          })
-        }
-      }
-    }
-
-    return NextResponse.json({ market, settled: bets?.length ?? 0 })
+  if (body.is_settled === true && body.correct_option) {
+    await settleMarket(admin, market)
   }
 
-  return NextResponse.json(market)
+  return NextResponse.json({ market })
 }
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ matchId: string; marketId: string }> }
-) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ matchId: string; marketId: string }> }) {
+  const auth = await assertClubAdmin()
+  if (!auth) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+
   const { marketId } = await params
-  const supabase = await createClient()
-  if (!await assertClubAdmin(supabase)) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+  const admin = adminClient()
 
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceKey) return NextResponse.json({ error: 'Config manquante' }, { status: 500 })
+  const { data: market } = await admin
+    .from('match_markets')
+    .select('club_id, is_published')
+    .eq('id', marketId)
+    .single()
 
-  const admin = createAdminClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceKey
-  )
+  if (!market) return NextResponse.json({ error: 'Marché introuvable' }, { status: 404 })
+
+  // Verify ownership
+  if (auth.role !== 'super_admin' && market.club_id !== auth.clubId)
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+
+  if (market.is_published)
+    return NextResponse.json({ error: 'Impossible de supprimer un marché publié' }, { status: 400 })
 
   const { error } = await admin.from('match_markets').delete().eq('id', marketId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: 'Erreur suppression' }, { status: 500 })
+
   return NextResponse.json({ success: true })
+}
+
+async function settleMarket(
+  admin: ReturnType<typeof createAdminClient<Database>>,
+  market: Database['public']['Tables']['match_markets']['Row']
+) {
+  const { data: bets } = await admin
+    .from('match_bets')
+    .select('*')
+    .eq('match_market_id', market.id)
+    .eq('is_settled', false)
+
+  if (!bets?.length) return
+
+  for (const bet of bets) {
+    const isCorrect = bet.selected_option === market.correct_option
+    const pointsWon = isCorrect ? bet.potential_win : 0
+
+    await admin.from('match_bets').update({
+      is_settled: true,
+      is_correct: isCorrect,
+      points_won: pointsWon,
+    }).eq('id', bet.id)
+
+    if (isCorrect) {
+      await admin.rpc('award_points', {
+        p_user_id: bet.user_id,
+        p_club_id: bet.club_id,
+        p_amount: pointsWon,
+        p_type: 'activation',
+        p_reference_id: bet.match_market_id,
+        p_description: `Pari gagnant : ${market.market_label}`,
+      })
+    }
+  }
 }
