@@ -2,15 +2,23 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ScanQrCode, Trophy, Gift, ChevronRight, Zap, Star } from 'lucide-react'
-import { Card } from '@/components/ui/Card'
+import { ScanQrCode, Trophy, Gift, ChevronRight, Bell } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
+import { ProgressBar } from '@/components/ui/ProgressBar'
+import { StadiumGatedSection } from '@/components/StadiumGatedSection'
 import type { Database } from '@/types/database'
 import { getLoyaltyLevel, getLoyaltyProgress, LOYALTY_CONFIG } from '@/types/database'
 import { getDefaultClub } from '@/lib/club'
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
+}
+
+function getLevelBadgeVariant(level: number): 'level-gold' | 'level-silver' | 'level-platinum' | 'neutral' {
+  if (level === 4) return 'level-platinum'
+  if (level >= 2) return 'level-gold'
+  if (level === 1) return 'level-silver'
+  return 'neutral'
 }
 
 export default async function HomePage() {
@@ -26,24 +34,24 @@ export default async function HomePage() {
 
   const club = await getDefaultClub()
   const CLUB_ID = club?.id ?? ''
-  const primaryColor = club?.primary_color ?? '#10b981'
+  const primaryColor = club?.primary_color ?? '#E1001A'
 
   const [
     { data: profile },
     { data: pointsData },
     { data: nextMatch },
     { data: recentPronostics },
-    { data: liveActivations },
     { data: featuredRewards },
     { data: myCheckins },
+    { data: topFans },
   ] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', user.id).single(),
     supabase.from('fan_points').select('total_points, season_points, lifetime_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
     supabase.from('matches').select('*').eq('club_id', CLUB_ID).in('status', ['upcoming', 'live']).order('match_date').limit(1).maybeSingle(),
     supabase.from('pronostics').select('*, matches(home_team, away_team, match_date, status, home_score, away_score)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
-    supabase.from('activations').select('*').eq('status', 'active').eq('club_id', CLUB_ID).limit(3),
-    supabase.from('rewards').select('*').eq('club_id', CLUB_ID).eq('is_active', true).order('sort_order').limit(4),
+    supabase.from('rewards').select('*').eq('club_id', CLUB_ID).eq('is_active', true).order('sort_order').limit(6),
     supabase.from('checkins').select('match_id').eq('user_id', user.id),
+    supabase.from('leaderboard').select('*').eq('club_id', CLUB_ID).order('rank').limit(5),
   ])
 
   const totalPoints = pointsData?.total_points ?? 0
@@ -51,254 +59,561 @@ export default async function HomePage() {
   const lifetimePoints = pointsData?.lifetime_points ?? 0
   const loyaltyLevel = getLoyaltyLevel(lifetimePoints)
   const levelConfig = LOYALTY_CONFIG[loyaltyLevel]
-  const nextLevel = LOYALTY_CONFIG[Math.min(loyaltyLevel + 1, 4) as 0]
   const progress = getLoyaltyProgress(lifetimePoints)
-  const ptsToNext = loyaltyLevel < 4 ? LOYALTY_CONFIG[Math.min(loyaltyLevel + 1, 4) as keyof typeof LOYALTY_CONFIG].min - lifetimePoints : 0
+  const ptsToNext = loyaltyLevel < 4
+    ? LOYALTY_CONFIG[Math.min(loyaltyLevel + 1, 4) as keyof typeof LOYALTY_CONFIG].min - lifetimePoints
+    : 0
 
   const checkedInMatchIds = new Set(myCheckins?.map(c => c.match_id) ?? [])
   const alreadyCheckedIn = nextMatch ? checkedInMatchIds.has(nextMatch.id) : false
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Fan'
+  const initials = profile?.full_name
+    ? profile.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'FA'
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
 
   return (
-    <div className="space-y-6 pb-4">
-      {/* Greeting */}
-      <div>
-        <p className="text-gray-400 text-sm">Bonjour,</p>
-        <h1 className="text-2xl font-black">{firstName} 👋</h1>
+    <main
+      style={{
+        background: '#ffffff',
+        minHeight: '100vh',
+        paddingBottom: 90,
+        fontFamily: 'var(--font-system, -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif)',
+        color: '#1d1d1f',
+      }}
+    >
+      {/* HEADER */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 40,
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(0,0,0,0.06)',
+          padding: '12px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div>
+          <p style={{ fontSize: 12, color: 'rgba(29,29,31,0.45)', margin: 0 }}>{greeting},</p>
+          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>{firstName}</h1>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Link
+            href="/notifications"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: '#f5f5f7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textDecoration: 'none',
+              color: '#1d1d1f',
+            }}
+          >
+            <Bell size={16} />
+          </Link>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: primaryColor,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            {initials}
+          </div>
+        </div>
       </div>
 
-      {/* Points Circle + Loyalty */}
-      <Card variant="glass" className="relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse at top left, ${primaryColor}18, transparent 60%)` }} />
-        <div className="relative flex items-center gap-6">
-          {/* Bigger SVG Circle */}
-          <div className="relative w-32 h-32 shrink-0">
-            <svg className="w-32 h-32 -rotate-90" viewBox="0 0 128 128">
-              <circle cx="64" cy="64" r="54" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
-              <circle
-                cx="64" cy="64" r="54" fill="none"
-                stroke={primaryColor}
-                strokeWidth="10"
-                strokeLinecap="round"
-                strokeDasharray={`${2 * Math.PI * 54}`}
-                strokeDashoffset={`${2 * Math.PI * 54 * (1 - progress / 100)}`}
-                style={{ transition: 'stroke-dashoffset 0.7s ease', filter: `drop-shadow(0 0 6px ${primaryColor}88)` }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-black leading-none tabular-nums">{totalPoints >= 1000 ? (totalPoints / 1000).toFixed(1) + 'k' : totalPoints}</span>
-              <span className="text-[10px] text-gray-400 mt-1 font-medium">points</span>
-            </div>
-          </div>
+      <div style={{ maxWidth: 430, margin: '0 auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <Star className="w-3.5 h-3.5" style={{ color: levelConfig.color }} />
-              <span className="text-sm font-bold" style={{ color: levelConfig.color }}>{levelConfig.name}</span>
+        {/* POINTS CARD */}
+        <div
+          style={{
+            background: '#ffffff',
+            borderRadius: 20,
+            border: '1px solid rgba(0,0,0,0.08)',
+            padding: 20,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            {/* SVG Progress Circle */}
+            <div style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
+              <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                <circle
+                  cx="50" cy="50" r="42"
+                  fill="none"
+                  stroke="rgba(0,0,0,0.07)"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="50" cy="50" r="42"
+                  fill="none"
+                  stroke={primaryColor}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 42}`}
+                  strokeDashoffset={`${2 * Math.PI * 42 * (1 - progress / 100)}`}
+                  style={{ transition: 'stroke-dashoffset 0.7s ease' }}
+                />
+              </svg>
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <span style={{ fontSize: 20, fontWeight: 800, color: '#1d1d1f', lineHeight: 1 }}>
+                  {totalPoints >= 1000 ? (totalPoints / 1000).toFixed(1) + 'k' : totalPoints}
+                </span>
+                <span style={{ fontSize: 9, color: 'rgba(29,29,31,0.45)', marginTop: 2 }}>pts</span>
+              </div>
             </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>Progression</span>
-                <span>{progress}%</span>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ marginBottom: 10 }}>
+                <Badge variant={getLevelBadgeVariant(loyaltyLevel)}>{levelConfig.name}</Badge>
               </div>
-              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progress}%`, background: levelConfig.color }} />
-              </div>
+              <ProgressBar value={progress} color={primaryColor} height={6} />
               {ptsToNext > 0 && (
-                <p className="text-xs text-gray-500">{ptsToNext.toLocaleString('fr-BE')} pts pour {LOYALTY_CONFIG[Math.min(loyaltyLevel + 1, 4) as keyof typeof LOYALTY_CONFIG].name}</p>
+                <p style={{ fontSize: 11, color: 'rgba(29,29,31,0.45)', marginTop: 5, marginBottom: 0 }}>
+                  {ptsToNext.toLocaleString('fr-BE')} pts pour le niveau suivant
+                </p>
               )}
-            </div>
-            <div className="flex gap-3 mt-3 text-xs">
-              <div>
-                <p className="text-gray-400">Saison</p>
-                <p className="font-bold">{seasonPoints.toLocaleString('fr-BE')}</p>
-              </div>
-              <div className="w-px bg-white/10" />
-              <div>
-                <p className="text-gray-400">Total vie</p>
-                <p className="font-bold">{lifetimePoints.toLocaleString('fr-BE')}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Live Activations */}
-      {liveActivations && liveActivations.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <h2 className="font-bold text-sm">Activations en cours</h2>
-          </div>
-          <div className="space-y-2">
-            {liveActivations.map(act => (
-              <Card key={act.id} variant="dark" className="border border-emerald-500/30">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-yellow-400" />
-                      <span className="font-bold text-sm">{act.title}</span>
-                    </div>
-                    {act.description && <p className="text-xs text-gray-400 mt-1">{act.description}</p>}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-black text-emerald-400">+{act.points_reward}</span>
-                    <Link href={`/activations/${act.id}`}>
-                      <Badge variant="success">Jouer</Badge>
-                    </Link>
-                  </div>
+              <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
+                <div>
+                  <p style={{ fontSize: 10, color: 'rgba(29,29,31,0.45)', margin: 0 }}>Ce mois</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#1d1d1f', margin: 0 }}>+{seasonPoints.toLocaleString('fr-BE')}</p>
                 </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Next Match */}
-      {nextMatch && (
-        <Card variant="dark" className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="relative">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-sm text-gray-400">Prochain match</h2>
-              <Badge variant={nextMatch.status === 'live' ? 'success' : 'info'}>
-                {nextMatch.status === 'live' ? 'En direct' : formatDate(nextMatch.match_date)}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-around py-3">
-              <div className="text-center">
-                <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-black mx-auto mb-2"
-                  style={{ background: primaryColor + '33', color: primaryColor, border: `2px solid ${primaryColor}55` }}
-                >
-                  {nextMatch.home_team.slice(0, 2).toUpperCase()}
+                <div style={{ width: 1, background: 'rgba(0,0,0,0.08)' }} />
+                <div>
+                  <p style={{ fontSize: 10, color: 'rgba(29,29,31,0.45)', margin: 0 }}>Total vie</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#1d1d1f', margin: 0 }}>{lifetimePoints.toLocaleString('fr-BE')}</p>
                 </div>
-                <p className="font-bold text-sm">{nextMatch.home_team}</p>
               </div>
-              <div className="text-center">
-                {nextMatch.status === 'finished' ? (
-                  <span className="text-2xl font-black">{nextMatch.home_score} - {nextMatch.away_score}</span>
+            </div>
+          </div>
+          <Link
+            href="/classement"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              marginTop: 16,
+              paddingTop: 14,
+              borderTop: '1px solid rgba(0,0,0,0.06)',
+              fontSize: 13,
+              fontWeight: 600,
+              color: primaryColor,
+              textDecoration: 'none',
+            }}
+          >
+            Voir ma progression <ChevronRight size={14} />
+          </Link>
+        </div>
+
+        {/* MATCH CARD */}
+        {nextMatch && (
+          <div
+            style={{
+              background: primaryColor,
+              borderRadius: 20,
+              padding: 20,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* background glow */}
+            <div
+              style={{
+                position: 'absolute',
+                top: -40,
+                right: -40,
+                width: 120,
+                height: 120,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.08)',
+              }}
+            />
+            <div style={{ position: 'relative' }}>
+              {/* Status badge */}
+              <div style={{ marginBottom: 16 }}>
+                {nextMatch.status === 'live' ? (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: 'rgba(255,255,255,0.20)',
+                      borderRadius: 100,
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#fff',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: '#fff',
+                        display: 'inline-block',
+                        animation: 'pulse 1.5s infinite',
+                      }}
+                    />
+                    LIVE
+                  </span>
                 ) : (
-                  <span className="text-gray-600 font-black text-xl">VS</span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      background: 'rgba(255,255,255,0.20)',
+                      borderRadius: 100,
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: '#fff',
+                    }}
+                  >
+                    {formatDate(nextMatch.match_date)}
+                  </span>
                 )}
               </div>
-              <div className="text-center">
-                <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg font-black mx-auto mb-2 text-gray-300">
-                  {nextMatch.away_team.slice(0, 2).toUpperCase()}
+
+              {/* Teams + score */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', paddingBottom: 16 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.20)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 15,
+                      fontWeight: 800,
+                      color: '#fff',
+                      margin: '0 auto 8px',
+                    }}
+                  >
+                    {nextMatch.home_team.slice(0, 2).toUpperCase()}
+                  </div>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: 0 }}>{nextMatch.home_team}</p>
                 </div>
-                <p className="font-bold text-sm">{nextMatch.away_team}</p>
+                <div style={{ textAlign: 'center' }}>
+                  {nextMatch.status === 'finished' || nextMatch.status === 'live' ? (
+                    <span style={{ fontSize: 28, fontWeight: 800, color: '#fff' }}>
+                      {nextMatch.home_score ?? 0} - {nextMatch.away_score ?? 0}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 22, fontWeight: 800, color: 'rgba(255,255,255,0.6)' }}>VS</span>
+                  )}
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.12)',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 15,
+                      fontWeight: 800,
+                      color: 'rgba(255,255,255,0.80)',
+                      margin: '0 auto 8px',
+                    }}
+                  >
+                    {nextMatch.away_team.slice(0, 2).toUpperCase()}
+                  </div>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.80)', margin: 0 }}>{nextMatch.away_team}</p>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: 8, borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: 14 }}>
+                {!alreadyCheckedIn && nextMatch.status === 'live' && (
+                  <Link
+                    href="/scan"
+                    style={{
+                      flex: 1,
+                      padding: '10px 0',
+                      borderRadius: 12,
+                      background: '#ffffff',
+                      color: primaryColor,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Scan QR (+{nextMatch.checkin_points} pts)
+                  </Link>
+                )}
+                {alreadyCheckedIn && (
+                  <div
+                    style={{
+                      flex: 1,
+                      padding: '10px 0',
+                      borderRadius: 12,
+                      background: 'rgba(255,255,255,0.15)',
+                      color: '#fff',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      textAlign: 'center',
+                    }}
+                  >
+                    Check-in validé ✓
+                  </div>
+                )}
+                <Link
+                  href="/pronostics"
+                  style={{
+                    flex: 1,
+                    padding: '10px 0',
+                    borderRadius: 12,
+                    background: 'rgba(255,255,255,0.15)',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Pronostic
+                </Link>
               </div>
             </div>
-            <div className="flex gap-2 mt-3">
-              {!alreadyCheckedIn && nextMatch.status === 'live' && (
-                <Link
-                  href="/scan"
-                  className="flex-1 py-2 rounded-xl text-sm font-semibold text-center transition-all active:scale-95 text-white"
-                  style={{ background: primaryColor }}
-                >
-                  Scan QR (+{nextMatch.checkin_points} pts)
-                </Link>
-              )}
-              {alreadyCheckedIn && (
-                <div className="flex-1 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-sm font-semibold text-emerald-400 text-center">
-                  Check-in validé ✓
-                </div>
-              )}
-              <Link href="/pronostics" className="flex-1 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-medium text-center transition-colors">
-                Pronostic
+          </div>
+        )}
+
+        {/* PARIS EN DIRECT — stadium gated (client component) */}
+        <StadiumGatedSection clubId={CLUB_ID || null} primaryColor={primaryColor} />
+
+        {/* QUICK ACTIONS */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          {[
+            { href: '/scan',       icon: <ScanQrCode size={20} />, label: 'Scanner',    bg: '#e8f5e9', color: '#2e7d32' },
+            { href: '/pronostics', icon: <Trophy size={20} />,      label: 'Pronos',     bg: '#fff8e1', color: '#c8860a' },
+            { href: '/rewards',    icon: <Gift size={20} />,        label: 'Récompenses', bg: '#e3f2fd', color: '#1565c0' },
+          ].map(({ href, icon, label, bg, color }) => (
+            <Link
+              key={href}
+              href={href}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+                padding: '14px 8px',
+                borderRadius: 16,
+                background: '#f5f5f7',
+                border: '1px solid rgba(0,0,0,0.06)',
+                textDecoration: 'none',
+                transition: 'all 0.15s',
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  background: bg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color,
+                }}
+              >
+                {icon}
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#1d1d1f' }}>{label}</span>
+            </Link>
+          ))}
+        </div>
+
+        {/* RECOMPENSES — horizontal scroll */}
+        {featuredRewards && featuredRewards.length > 0 && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>Récompenses</h2>
+              <Link href="/rewards" style={{ fontSize: 12, color: primaryColor, textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
+                Catalogue <ChevronRight size={12} />
               </Link>
             </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { href: '/scan',       icon: ScanQrCode, label: 'Scanner',    color: 'emerald' },
-          { href: '/pronostics', icon: Trophy,      label: 'Pronostics', color: 'amber'   },
-          { href: '/rewards',    icon: Gift,        label: 'Récompenses', color: 'blue'   },
-        ].map(({ href, icon: Icon, label, color }) => (
-          <Link
-            key={href}
-            href={href}
-            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 hover:bg-white/8 border border-white/5 hover:border-white/10 transition-all active:scale-95 text-center"
-          >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${color}-500/15`}>
-              <Icon className={`w-5 h-5 text-${color}-400`} />
+            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }} className="scrollbar-none">
+              {featuredRewards.map(r => {
+                const canAfford = totalPoints >= r.points_cost
+                const emoji = r.category === 'merchandise' ? '👕' : r.category === 'experience' ? '🏆' : r.category === 'discount' ? '🏷️' : r.category === 'vip' ? '🎫' : '🖼️'
+                return (
+                  <Link
+                    key={r.id}
+                    href="/rewards"
+                    style={{
+                      flexShrink: 0,
+                      width: 140,
+                      background: '#f5f5f7',
+                      borderRadius: 16,
+                      padding: 14,
+                      border: '1px solid rgba(0,0,0,0.06)',
+                      textDecoration: 'none',
+                      display: 'block',
+                    }}
+                  >
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#1d1d1f', margin: '0 0 6px', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {r.title}
+                    </p>
+                    <p style={{ fontSize: 13, fontWeight: 800, margin: 0, color: canAfford ? '#2e7d32' : 'rgba(29,29,31,0.35)' }}>
+                      {r.points_cost.toLocaleString('fr-BE')} pts
+                    </p>
+                  </Link>
+                )
+              })}
             </div>
-            <span className="text-xs font-medium text-gray-300">{label}</span>
-          </Link>
-        ))}
-      </div>
-
-      {/* Recent Predictions */}
-      {recentPronostics && recentPronostics.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold">Mes pronostics récents</h2>
-            <Link href="/pronostics" className="text-xs text-emerald-400 flex items-center gap-1">
-              Voir tout <ChevronRight className="w-3 h-3" />
-            </Link>
           </div>
-          <div className="space-y-2">
-            {recentPronostics.map((p) => {
-              const match = (p as any).matches
-              return (
-                <Card key={p.id} variant="dark">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {match?.home_team} - {match?.away_team}
+        )}
+
+        {/* LEADERBOARD AMIS */}
+        {topFans && topFans.length > 0 && (
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 20,
+              border: '1px solid rgba(0,0,0,0.08)',
+              padding: 20,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>Classement</h2>
+              <Link href="/classement" style={{ fontSize: 12, color: primaryColor, textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
+                Voir tout <ChevronRight size={12} />
+              </Link>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {topFans.map((fan, i) => {
+                const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null
+                const level = getLoyaltyLevel(fan.total_points ?? 0)
+                const levelConf = LOYALTY_CONFIG[level]
+                return (
+                  <div key={fan.user_id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ width: 24, textAlign: 'center', fontSize: 14 }}>
+                      {rankEmoji ?? <span style={{ fontSize: 12, color: 'rgba(29,29,31,0.40)', fontWeight: 600 }}>#{i + 1}</span>}
+                    </span>
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: '50%',
+                        background: primaryColor + '20',
+                        border: `1px solid ${primaryColor}30`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: primaryColor,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {fan.full_name?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#1d1d1f', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {fan.full_name ?? fan.username ?? 'Anonyme'}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Pronostic : {p.predicted_home_score} - {p.predicted_away_score}
+                      <p style={{ fontSize: 11, color: levelConf.color, margin: 0, fontWeight: 500 }}>{levelConf.name}</p>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1d1d1f' }}>
+                      {(fan.total_points ?? 0).toLocaleString('fr-BE')}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* RECENT PRONOSTICS */}
+        {recentPronostics && recentPronostics.length > 0 && (
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 20,
+              border: '1px solid rgba(0,0,0,0.08)',
+              padding: 20,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>Mes pronostics</h2>
+              <Link href="/pronostics" style={{ fontSize: 12, color: primaryColor, textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
+                Voir tout <ChevronRight size={12} />
+              </Link>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {recentPronostics.map((p, idx) => {
+                const match = (p as any).matches
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      paddingTop: idx === 0 ? 0 : 10,
+                      paddingBottom: 10,
+                      borderBottom: idx < recentPronostics.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: '#1d1d1f', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {match?.home_team} – {match?.away_team}
+                      </p>
+                      <p style={{ fontSize: 11, color: 'rgba(29,29,31,0.45)', margin: '2px 0 0' }}>
+                        Pronostic : {p.predicted_home_score} – {p.predicted_away_score}
                       </p>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div>
                       {p.result === 'exact' && <Badge variant="success">Exact +{p.points_earned}</Badge>}
-                      {p.result === 'winner' && <Badge variant="info">Vainqueur +{p.points_earned}</Badge>}
+                      {p.result === 'winner' && <Badge variant="warning">Vainqueur +{p.points_earned}</Badge>}
                       {p.result === 'wrong' && <Badge variant="error">Raté</Badge>}
                       {!p.result && <Badge variant="neutral">En attente</Badge>}
                     </div>
                   </div>
-                </Card>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Featured Rewards */}
-      {featuredRewards && featuredRewards.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold">Récompenses vedettes</h2>
-            <Link href="/rewards" className="text-xs text-emerald-400 flex items-center gap-1">
-              Catalogue <ChevronRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-            {featuredRewards.map(r => {
-              const canAfford = totalPoints >= r.points_cost
-              return (
-                <Link
-                  key={r.id}
-                  href="/rewards"
-                  className="shrink-0 w-40 bg-white/5 rounded-2xl p-3 border border-white/5 hover:border-white/10 transition-all"
-                >
-                  <div className="text-3xl mb-2">{r.category === 'merchandise' ? '👕' : r.category === 'experience' ? '🏆' : r.category === 'discount' ? '🏷️' : r.category === 'vip' ? '🎫' : '🖼️'}</div>
-                  <p className="text-sm font-bold leading-tight line-clamp-2">{r.title}</p>
-                  <p className={`text-sm font-black mt-2 ${canAfford ? 'text-emerald-400' : 'text-gray-500'}`}>
-                    {r.points_cost.toLocaleString('fr-BE')} pts
-                  </p>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </main>
   )
 }

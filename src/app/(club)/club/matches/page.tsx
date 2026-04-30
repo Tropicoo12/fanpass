@@ -4,7 +4,7 @@ import { after } from 'next/server'
 import type { Database } from '@/types/database'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { Calendar, QrCode, Zap } from 'lucide-react'
+import { Calendar, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { CreateMatchButton } from './CreateMatchButton'
 import { MatchDeleteButton } from './MatchDeleteButton'
@@ -74,10 +74,10 @@ export default async function MatchesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black">Matchs</h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <h1 className="text-2xl font-black" style={{ color: '#1d1d1f' }}>Matchs</h1>
+          <p className="text-sm mt-1" style={{ color: 'rgba(29,29,31,0.55)' }}>
             {isConfigured
-              ? <><span className="text-white font-medium">{club.team_name}</span>{lastSync && <span className="text-gray-500"> · synchro {lastSync}</span>}</>
+              ? <><span className="font-medium" style={{ color: '#1d1d1f' }}>{club.team_name}</span>{lastSync && <span style={{ color: 'rgba(29,29,31,0.45)' }}> · synchro {lastSync}</span>}</>
               : 'Configure ton équipe pour importer le calendrier automatiquement'
             }
           </p>
@@ -99,8 +99,8 @@ export default async function MatchesPage() {
           { label: 'Terminés',     value: past.length },
         ].map(s => (
           <Card key={s.label} variant="dark" className="text-center">
-            <p className="text-xl font-black">{s.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+            <p className="text-xl font-black" style={{ color: '#1d1d1f' }}>{s.value}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(29,29,31,0.45)' }}>{s.label}</p>
           </Card>
         ))}
       </div>
@@ -142,43 +142,63 @@ function MatchCard({ match, checkins, activations }: {
   activations: number
 }) {
   const { label, variant } = STATUS_BADGE[match.status]
+  const isActive = match.status !== 'finished' && match.status !== 'cancelled'
   return (
-    <Card variant="dark" className="hover:border-white/10 transition-colors border border-white/5">
+    <Card variant="dark" style={{ transition: 'box-shadow 0.15s' }}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             <Badge variant={variant}>{label}</Badge>
             {match.status === 'finished' && match.home_score !== null && (
-              <span className="text-sm font-black tabular-nums">{match.home_score} – {match.away_score}</span>
+              <span className="text-sm font-black tabular-nums" style={{ color: '#1d1d1f' }}>
+                {match.home_score} – {match.away_score}
+              </span>
             )}
           </div>
-          <h3 className="font-bold text-sm">{match.home_team} <span className="text-gray-500 font-normal">vs</span> {match.away_team}</h3>
-          <div className="flex items-center gap-1 mt-1 text-gray-400 text-xs">
+          <h3 className="font-bold text-sm" style={{ color: '#1d1d1f' }}>
+            {match.home_team}{' '}
+            <span className="font-normal" style={{ color: 'rgba(29,29,31,0.40)' }}>vs</span>{' '}
+            {match.away_team}
+          </h3>
+          <div className="flex items-center gap-1 mt-1 text-xs" style={{ color: 'rgba(29,29,31,0.50)' }}>
             <Calendar className="w-3 h-3 shrink-0" />
             {new Intl.DateTimeFormat('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(match.match_date))}
-            {match.venue && <><span className="text-gray-600">·</span> {match.venue}</>}
+            {match.venue && <><span style={{ color: 'rgba(29,29,31,0.25)' }}>·</span> {match.venue}</>}
           </div>
           {(checkins > 0 || activations > 0 || match.odds_home) && (
-            <div className="flex gap-4 mt-1.5 text-xs text-gray-500 flex-wrap">
+            <div className="flex gap-4 mt-1.5 text-xs flex-wrap" style={{ color: 'rgba(29,29,31,0.45)' }}>
               {checkins > 0 && <span>📲 {checkins} check-ins</span>}
               {activations > 0 && <span>⚡ {activations} activations</span>}
               {match.odds_home != null && (
-                <span className="text-amber-400/70">{match.odds_home.toFixed(2)} · {match.odds_draw?.toFixed(2)} · {match.odds_away?.toFixed(2)}</span>
+                <span style={{ color: '#c8860a' }}>
+                  {match.odds_home.toFixed(2)} · {match.odds_draw?.toFixed(2)} · {match.odds_away?.toFixed(2)}
+                </span>
               )}
             </div>
           )}
         </div>
         <div className="flex flex-col gap-1.5 shrink-0">
-          {match.status !== 'finished' && match.status !== 'cancelled' && (
-            <Link href={`/club/live/${match.id}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-medium transition-colors">
+          {isActive && (
+            <Link
+              href={`/club/live/${match.id}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                borderRadius: 8,
+                background: match.status === 'live' ? '#E1001A' : 'rgba(225,0,26,0.08)',
+                color: match.status === 'live' ? '#fff' : '#E1001A',
+                fontSize: 12,
+                fontWeight: 600,
+                textDecoration: 'none',
+                transition: 'all 0.15s',
+              }}
+            >
               <Zap className="w-3 h-3" />
-              {match.status === 'live' ? 'Gérer' : 'Préparer'}
+              {match.status === 'live' ? 'Gérer le live' : 'Préparer'}
             </Link>
           )}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-medium transition-colors">
-            <QrCode className="w-3 h-3" />
-            QR code
-          </button>
           <MatchDeleteButton matchId={match.id} />
         </div>
       </div>

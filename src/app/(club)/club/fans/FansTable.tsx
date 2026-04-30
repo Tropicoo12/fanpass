@@ -47,27 +47,36 @@ export function FansTable({ fans, checkinsByUser, lastActivityByUser }: Props) {
       {/* Search + filter */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(29,29,31,0.35)' }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Rechercher un fan…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-gray-600"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2"
+            style={{
+              background: '#f5f5f7',
+              border: '1px solid rgba(0,0,0,0.08)',
+              color: '#1d1d1f',
+              outlineColor: '#E1001A',
+            }}
           />
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {LEVEL_FILTERS.map(lf => {
             const cfg = lf.value >= 0 ? LOYALTY_CONFIG[lf.value as 0] : null
+            const active = levelFilter === lf.value
             return (
               <button
                 key={lf.value}
                 onClick={() => setLevelFilter(lf.value)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                  levelFilter === lf.value
-                    ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
-                    : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10'
-                }`}
-                style={cfg && levelFilter === lf.value ? { borderColor: cfg.color + '80', background: cfg.color + '20', color: cfg.color } : {}}
+                className="px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+                style={
+                  active && cfg
+                    ? { border: `1px solid ${cfg.color}80`, background: cfg.color + '18', color: cfg.color }
+                    : active
+                    ? { border: '1px solid rgba(0,0,0,0.15)', background: 'rgba(0,0,0,0.06)', color: '#1d1d1f' }
+                    : { border: '1px solid rgba(0,0,0,0.08)', background: '#f5f5f7', color: 'rgba(29,29,31,0.55)' }
+                }
               >
                 {lf.label}
               </button>
@@ -76,29 +85,29 @@ export function FansTable({ fans, checkinsByUser, lastActivityByUser }: Props) {
         </div>
       </div>
 
-      <p className="text-xs text-gray-500">{filtered.length} fan{filtered.length !== 1 ? 's' : ''} affiché{filtered.length !== 1 ? 's' : ''}</p>
+      <p className="text-xs" style={{ color: 'rgba(29,29,31,0.45)' }}>{filtered.length} fan{filtered.length !== 1 ? 's' : ''} affiché{filtered.length !== 1 ? 's' : ''}</p>
 
       {filtered.length === 0 ? (
         <Card variant="dark" className="text-center py-10">
-          <Search className="w-8 h-8 text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400 text-sm">Aucun fan ne correspond à ta recherche</p>
+          <Search className="w-8 h-8 mx-auto mb-3" style={{ color: 'rgba(29,29,31,0.25)' }} />
+          <p className="text-sm" style={{ color: 'rgba(29,29,31,0.45)' }}>Aucun fan ne correspond à ta recherche</p>
         </Card>
       ) : (
         <Card variant="dark">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left border-b border-white/5">
-                  <th className="pb-3 text-gray-400 font-medium">#</th>
-                  <th className="pb-3 text-gray-400 font-medium">Fan</th>
-                  <th className="pb-3 text-gray-400 font-medium hidden sm:table-cell">Niveau</th>
-                  <th className="pb-3 text-gray-400 font-medium">Matchs</th>
-                  <th className="pb-3 text-gray-400 font-medium">Points</th>
-                  <th className="pb-3 text-gray-400 font-medium hidden md:table-cell">Saison</th>
-                  <th className="pb-3 text-gray-400 font-medium hidden lg:table-cell">Dernière activité</th>
+                <tr className="text-left" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                  <th className="pb-3 font-medium" style={{ color: 'rgba(29,29,31,0.45)' }}>#</th>
+                  <th className="pb-3 font-medium" style={{ color: 'rgba(29,29,31,0.45)' }}>Fan</th>
+                  <th className="pb-3 font-medium hidden sm:table-cell" style={{ color: 'rgba(29,29,31,0.45)' }}>Niveau</th>
+                  <th className="pb-3 font-medium" style={{ color: 'rgba(29,29,31,0.45)' }}>Matchs</th>
+                  <th className="pb-3 font-medium" style={{ color: 'rgba(29,29,31,0.45)' }}>Points</th>
+                  <th className="pb-3 font-medium hidden md:table-cell" style={{ color: 'rgba(29,29,31,0.45)' }}>Saison</th>
+                  <th className="pb-3 font-medium hidden lg:table-cell" style={{ color: 'rgba(29,29,31,0.45)' }}>Dernière activité</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody>
                 {filtered.map((fan, i) => {
                   const level = getLoyaltyLevel(fan.total_points ?? 0)
                   const levelCfg = LOYALTY_CONFIG[level]
@@ -107,16 +116,16 @@ export function FansTable({ fans, checkinsByUser, lastActivityByUser }: Props) {
                   const churnRisk = (fan.total_points ?? 0) < 200 && checks === 0
 
                   return (
-                    <tr key={fan.user_id} className="hover:bg-white/2 transition-colors">
-                      <td className="py-3 text-gray-600 text-xs">{i + 1}</td>
+                    <tr key={fan.user_id} className="transition-colors" style={{ borderTop: '1px solid rgba(0,0,0,0.04)' }}>
+                      <td className="py-3 text-xs" style={{ color: 'rgba(29,29,31,0.35)' }}>{i + 1}</td>
                       <td className="py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black shrink-0 text-white">
                             {(fan.full_name ?? fan.username ?? '?')[0].toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-medium truncate max-w-[120px]">{fan.full_name ?? fan.username ?? 'Anonyme'}</p>
-                            {churnRisk && <p className="text-[10px] text-red-400">Risque churn</p>}
+                            <p className="font-medium truncate max-w-[120px]" style={{ color: '#1d1d1f' }}>{fan.full_name ?? fan.username ?? 'Anonyme'}</p>
+                            {churnRisk && <p className="text-[10px]" style={{ color: '#E1001A' }}>Risque churn</p>}
                           </div>
                         </div>
                       </td>
@@ -128,9 +137,9 @@ export function FansTable({ fans, checkinsByUser, lastActivityByUser }: Props) {
                       <td className="py-3">
                         <Badge variant="info">{checks}</Badge>
                       </td>
-                      <td className="py-3 font-black text-emerald-400">{(fan.total_points ?? 0).toLocaleString('fr-BE')}</td>
-                      <td className="py-3 text-gray-400 hidden md:table-cell">{(fan.season_points ?? 0).toLocaleString('fr-BE')}</td>
-                      <td className="py-3 text-gray-500 text-xs hidden lg:table-cell">{lastActivity ? fmtDate(lastActivity) : '—'}</td>
+                      <td className="py-3 font-black" style={{ color: '#E1001A' }}>{(fan.total_points ?? 0).toLocaleString('fr-BE')}</td>
+                      <td className="py-3 hidden md:table-cell" style={{ color: 'rgba(29,29,31,0.55)' }}>{(fan.season_points ?? 0).toLocaleString('fr-BE')}</td>
+                      <td className="py-3 text-xs hidden lg:table-cell" style={{ color: 'rgba(29,29,31,0.40)' }}>{lastActivity ? fmtDate(lastActivity) : '—'}</td>
                     </tr>
                   )
                 })}

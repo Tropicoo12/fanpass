@@ -15,7 +15,7 @@ const TYPE_LABELS: Record<string, string> = {
   manual: 'Manuel',
 }
 
-const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6']
+const COLORS = ['#E1001A', '#6366f1', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6']
 
 interface Props {
   loyaltyDist: { name: string; count: number; color: string }[]
@@ -26,12 +26,15 @@ interface Props {
 }
 
 const tooltipStyle = {
-  backgroundColor: '#1a1a2e',
-  border: '1px solid rgba(255,255,255,0.1)',
+  backgroundColor: '#ffffff',
+  border: '1px solid rgba(0,0,0,0.08)',
   borderRadius: '12px',
-  color: '#fff',
+  color: '#1d1d1f',
   fontSize: '12px',
+  boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
 }
+
+const axisStyle = { fill: 'rgba(29,29,31,0.40)', fontSize: 11 }
 
 export function AnalyticsCharts({ loyaltyDist, checkinsByMatch, top10, activationData, pointsTypeData }: Props) {
   return (
@@ -39,45 +42,45 @@ export function AnalyticsCharts({ loyaltyDist, checkinsByMatch, top10, activatio
       {/* Check-ins per match */}
       {checkinsByMatch.length > 0 ? (
         <Card variant="dark">
-          <h2 className="font-bold mb-4">Check-ins par match</h2>
+          <h2 className="font-bold mb-4" style={{ color: '#1d1d1f' }}>Check-ins par match</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={checkinsByMatch} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-              <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-              <Bar dataKey="checkins" fill="#10b981" radius={[6, 6, 0, 0]} name="Check-ins" />
+              <XAxis dataKey="label" tick={axisStyle} axisLine={false} tickLine={false} />
+              <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+              <Bar dataKey="checkins" fill="#E1001A" radius={[6, 6, 0, 0]} name="Check-ins" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
       ) : (
         <Card variant="dark" className="text-center py-8">
-          <p className="text-gray-500 text-sm">Aucun match avec check-ins pour le moment</p>
+          <p className="text-sm" style={{ color: 'rgba(29,29,31,0.40)' }}>Aucun match avec check-ins pour le moment</p>
         </Card>
       )}
 
       {/* Top 10 fans */}
       {top10.length > 0 ? (
         <Card variant="dark">
-          <h2 className="font-bold mb-4">Top 10 fans (saison)</h2>
+          <h2 className="font-bold mb-4" style={{ color: '#1d1d1f' }}>Top 10 fans (saison)</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={top10} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
-              <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis dataKey="name" type="category" width={90} tick={{ fill: '#d1d5db', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+              <XAxis type="number" tick={axisStyle} axisLine={false} tickLine={false} />
+              <YAxis dataKey="name" type="category" width={90} tick={axisStyle} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
               <Bar dataKey="points" fill="#6366f1" radius={[0, 6, 6, 0]} name="Points saison" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
       ) : (
         <Card variant="dark" className="text-center py-8">
-          <p className="text-gray-500 text-sm">Aucun fan avec des points pour le moment</p>
+          <p className="text-sm" style={{ color: 'rgba(29,29,31,0.40)' }}>Aucun fan avec des points pour le moment</p>
         </Card>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Loyalty distribution */}
         <Card variant="dark">
-          <h2 className="font-bold mb-4">Niveaux de fidélité</h2>
+          <h2 className="font-bold mb-4" style={{ color: '#1d1d1f' }}>Niveaux de fidélité</h2>
           {loyaltyDist.some(d => d.count > 0) ? (
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
@@ -87,17 +90,17 @@ export function AnalyticsCharts({ loyaltyDist, checkinsByMatch, top10, activatio
                   ))}
                 </Pie>
                 <Tooltip contentStyle={tooltipStyle} />
-                <Legend formatter={(v) => <span style={{ color: '#9ca3af', fontSize: 12 }}>{v}</span>} />
+                <Legend formatter={(v) => <span style={{ color: 'rgba(29,29,31,0.55)', fontSize: 12 }}>{v}</span>} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-gray-500 text-sm text-center py-8">Aucun fan enregistré</p>
+            <p className="text-sm text-center py-8" style={{ color: 'rgba(29,29,31,0.40)' }}>Aucun fan enregistré</p>
           )}
         </Card>
 
         {/* Points by source */}
         <Card variant="dark">
-          <h2 className="font-bold mb-4">Points par source</h2>
+          <h2 className="font-bold mb-4" style={{ color: '#1d1d1f' }}>Points par source</h2>
           {pointsTypeData.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
@@ -107,11 +110,11 @@ export function AnalyticsCharts({ loyaltyDist, checkinsByMatch, top10, activatio
                   ))}
                 </Pie>
                 <Tooltip contentStyle={tooltipStyle} />
-                <Legend formatter={(v) => <span style={{ color: '#9ca3af', fontSize: 12 }}>{v}</span>} />
+                <Legend formatter={(v) => <span style={{ color: 'rgba(29,29,31,0.55)', fontSize: 12 }}>{v}</span>} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-gray-500 text-sm text-center py-8">Aucune transaction encore</p>
+            <p className="text-sm text-center py-8" style={{ color: 'rgba(29,29,31,0.40)' }}>Aucune transaction encore</p>
           )}
         </Card>
       </div>
@@ -119,12 +122,12 @@ export function AnalyticsCharts({ loyaltyDist, checkinsByMatch, top10, activatio
       {/* Activation participation */}
       {activationData.length > 0 && (
         <Card variant="dark">
-          <h2 className="font-bold mb-4">Participations aux activations</h2>
+          <h2 className="font-bold mb-4" style={{ color: '#1d1d1f' }}>Participations aux activations</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={activationData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-              <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+              <XAxis dataKey="name" tick={axisStyle} axisLine={false} tickLine={false} />
+              <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
               <Bar dataKey="responses" fill="#f59e0b" radius={[6, 6, 0, 0]} name="Réponses" />
             </BarChart>
           </ResponsiveContainer>

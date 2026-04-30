@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Plus, ToggleLeft, ToggleRight, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -17,6 +17,10 @@ interface Props {
   clubId: string
 }
 
+const inputCls = 'w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E1001A]'
+const inputStyle = { background: '#f5f5f7', border: '1px solid rgba(0,0,0,0.08)', color: '#1d1d1f' }
+const labelStyle: React.CSSProperties = { color: 'rgba(29,29,31,0.65)', fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 6 }
+
 export function SponsorsManager({ sponsors, surveys, responsesBySurvey, clubId }: Props) {
   const router = useRouter()
   const { toast } = useToast()
@@ -25,7 +29,7 @@ export function SponsorsManager({ sponsors, surveys, responsesBySurvey, clubId }
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  const [sponsorForm, setSponsorForm] = useState({ name: '', website_url: '', primary_color: '#10b981' })
+  const [sponsorForm, setSponsorForm] = useState({ name: '', website_url: '', primary_color: '#E1001A' })
   const [surveyForm, setSurveyForm] = useState({
     title: '',
     description: '',
@@ -71,13 +75,15 @@ export function SponsorsManager({ sponsors, surveys, responsesBySurvey, clubId }
       {/* Sponsors */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold">Sponsors</h2>
+          <h2 className="font-bold" style={{ color: '#1d1d1f' }}>Sponsors</h2>
           <Button size="sm" onClick={() => setSponsorModal(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" />Ajouter
           </Button>
         </div>
         {sponsors.length === 0 && (
-          <Card variant="dark" className="text-center py-6 text-gray-500">Aucun sponsor</Card>
+          <Card variant="dark" className="text-center py-6">
+            <p style={{ color: 'rgba(29,29,31,0.45)' }}>Aucun sponsor</p>
+          </Card>
         )}
         <div className="space-y-2">
           {sponsors.map(s => (
@@ -88,8 +94,8 @@ export function SponsorsManager({ sponsors, surveys, responsesBySurvey, clubId }
                   {s.name[0]}
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">{s.name}</p>
-                  {s.website_url && <p className="text-xs text-gray-500">{s.website_url}</p>}
+                  <p className="font-semibold text-sm" style={{ color: '#1d1d1f' }}>{s.name}</p>
+                  {s.website_url && <p className="text-xs" style={{ color: 'rgba(29,29,31,0.45)' }}>{s.website_url}</p>}
                 </div>
                 <Badge variant={s.is_active ? 'success' : 'neutral'}>{s.is_active ? 'Actif' : 'Inactif'}</Badge>
               </div>
@@ -101,13 +107,15 @@ export function SponsorsManager({ sponsors, surveys, responsesBySurvey, clubId }
       {/* Surveys */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold">Sondages</h2>
+          <h2 className="font-bold" style={{ color: '#1d1d1f' }}>Sondages</h2>
           <Button size="sm" onClick={() => setSurveyModal(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" />Créer
           </Button>
         </div>
         {surveys.length === 0 && (
-          <Card variant="dark" className="text-center py-6 text-gray-500">Aucun sondage</Card>
+          <Card variant="dark" className="text-center py-6">
+            <p style={{ color: 'rgba(29,29,31,0.45)' }}>Aucun sondage</p>
+          </Card>
         )}
         <div className="space-y-2">
           {surveys.map(survey => {
@@ -121,22 +129,25 @@ export function SponsorsManager({ sponsors, surveys, responsesBySurvey, clubId }
                 >
                   <div className="flex-1 text-left">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm">{survey.title}</p>
+                      <p className="font-semibold text-sm" style={{ color: '#1d1d1f' }}>{survey.title}</p>
                       <Badge variant={survey.is_active ? 'success' : 'neutral'}>
                         {survey.is_active ? 'Actif' : 'Inactif'}
                       </Badge>
                     </div>
-                    <div className="flex gap-3 mt-1 text-xs text-gray-400">
+                    <div className="flex gap-3 mt-1 text-xs" style={{ color: 'rgba(29,29,31,0.45)' }}>
                       {survey.sponsors && <span>{survey.sponsors.name}</span>}
                       <span>{survey.survey_questions?.length ?? 0} questions</span>
-                      <span className="text-emerald-400">{responses} réponses</span>
+                      <span style={{ color: '#E1001A' }}>{responses} réponses</span>
                       <span>+{survey.points_reward} pts</span>
                     </div>
                   </div>
-                  {isOpen ? <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />}
+                  {isOpen
+                    ? <ChevronDown className="w-4 h-4 shrink-0" style={{ color: 'rgba(29,29,31,0.40)' }} />
+                    : <ChevronRight className="w-4 h-4 shrink-0" style={{ color: 'rgba(29,29,31,0.40)' }} />
+                  }
                 </button>
                 {isOpen && (
-                  <div className="mt-3 pt-3 border-t border-white/5 text-xs text-gray-400 space-y-1">
+                  <div className="mt-3 pt-3 text-xs space-y-1" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', color: 'rgba(29,29,31,0.50)' }}>
                     {survey.description && <p>{survey.description}</p>}
                     <p>Durée estimée : {survey.estimated_minutes} min</p>
                     {survey.expires_at && <p>Expire : {new Intl.DateTimeFormat('fr-BE').format(new Date(survey.expires_at))}</p>}
@@ -154,9 +165,10 @@ export function SponsorsManager({ sponsors, surveys, responsesBySurvey, clubId }
           <Input label="Nom *" value={sponsorForm.name} onChange={e => setSponsorForm(f => ({ ...f, name: e.target.value }))} required />
           <Input label="Site web" placeholder="https://..." value={sponsorForm.website_url} onChange={e => setSponsorForm(f => ({ ...f, website_url: e.target.value }))} />
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Couleur principale</label>
+            <label style={labelStyle}>Couleur principale</label>
             <input type="color" value={sponsorForm.primary_color} onChange={e => setSponsorForm(f => ({ ...f, primary_color: e.target.value }))}
-              className="w-full h-10 rounded-xl bg-white/5 border border-white/10 cursor-pointer" />
+              className="w-full h-10 rounded-xl cursor-pointer"
+              style={{ background: '#f5f5f7', border: '1px solid rgba(0,0,0,0.08)' }} />
           </div>
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer le sponsor'}
@@ -169,26 +181,27 @@ export function SponsorsManager({ sponsors, surveys, responsesBySurvey, clubId }
         <form onSubmit={createSurvey} className="space-y-4">
           <Input label="Titre *" value={surveyForm.title} onChange={e => setSurveyForm(f => ({ ...f, title: e.target.value }))} required />
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Description</label>
+            <label style={labelStyle}>Description</label>
             <textarea value={surveyForm.description} onChange={e => setSurveyForm(f => ({ ...f, description: e.target.value }))} rows={2}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E1001A] resize-none"
+              style={inputStyle} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Points récompense</label>
+              <label style={labelStyle}>Points récompense</label>
               <input type="number" min={0} value={surveyForm.points_reward} onChange={e => setSurveyForm(f => ({ ...f, points_reward: +e.target.value }))}
-                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Durée (min)</label>
+              <label style={labelStyle}>Durée (min)</label>
               <input type="number" min={1} value={surveyForm.estimated_minutes} onChange={e => setSurveyForm(f => ({ ...f, estimated_minutes: +e.target.value }))}
-                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className={inputCls} style={inputStyle} />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Sponsor (optionnel)</label>
+            <label style={labelStyle}>Sponsor (optionnel)</label>
             <select value={surveyForm.sponsor_id} onChange={e => setSurveyForm(f => ({ ...f, sponsor_id: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              className={inputCls} style={inputStyle}>
               <option value="">Aucun</option>
               {sponsors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>

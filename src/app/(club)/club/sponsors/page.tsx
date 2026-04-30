@@ -31,8 +31,8 @@ export default async function SponsorsAdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black">Sponsors & Sondages</h1>
-        <p className="text-gray-400 text-sm mt-1">Gérez les partenaires et leurs sondages fans</p>
+        <h1 className="text-2xl font-black" style={{ color: '#1d1d1f' }}>Sponsors & Sondages</h1>
+        <p className="text-sm mt-1" style={{ color: 'rgba(29,29,31,0.55)' }}>Gérez les partenaires et leurs sondages fans</p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -42,8 +42,8 @@ export default async function SponsorsAdminPage() {
           { label: 'Pts distribués', value: totalPointsDistributed.toLocaleString('fr-BE') },
         ].map(s => (
           <Card key={s.label} variant="dark" className="text-center">
-            <p className="text-xl font-black">{s.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+            <p className="text-xl font-black" style={{ color: '#1d1d1f' }}>{s.value}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(29,29,31,0.45)' }}>{s.label}</p>
           </Card>
         ))}
       </div>

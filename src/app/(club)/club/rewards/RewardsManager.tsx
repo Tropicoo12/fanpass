@@ -33,6 +33,10 @@ const EMPTY_FORM = {
   expires_at: '',
 }
 
+const inputCls = 'w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E1001A]'
+const inputStyle = { background: '#f5f5f7', border: '1px solid rgba(0,0,0,0.08)', color: '#1d1d1f' }
+const labelStyle = { color: 'rgba(29,29,31,0.65)', fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 6 }
+
 export function RewardsManager({ rewards, redemptionsByReward, clubId }: Props) {
   const router = useRouter()
   const { toast } = useToast()
@@ -110,7 +114,7 @@ export function RewardsManager({ rewards, redemptionsByReward, clubId }: Props) 
 
       {rewards.length === 0 && (
         <Card variant="dark" className="text-center py-10">
-          <p className="text-gray-400">Aucune récompense créée</p>
+          <p style={{ color: 'rgba(29,29,31,0.45)' }}>Aucune récompense créée</p>
         </Card>
       )}
 
@@ -121,7 +125,7 @@ export function RewardsManager({ rewards, redemptionsByReward, clubId }: Props) 
               <span className="text-3xl shrink-0">{CATEGORY_EMOJI[reward.category] ?? '🎁'}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold truncate">{reward.title}</h3>
+                  <h3 className="font-bold truncate" style={{ color: '#1d1d1f' }}>{reward.title}</h3>
                   <Badge variant={reward.is_active ? 'success' : 'neutral'}>
                     {reward.is_active ? 'Actif' : 'Inactif'}
                   </Badge>
@@ -131,23 +135,23 @@ export function RewardsManager({ rewards, redemptionsByReward, clubId }: Props) 
                     </span>
                   )}
                 </div>
-                <div className="flex gap-4 mt-1 text-xs text-gray-400">
-                  <span className="font-semibold text-emerald-400">{reward.points_cost.toLocaleString('fr-BE')} pts</span>
+                <div className="flex gap-4 mt-1 text-xs" style={{ color: 'rgba(29,29,31,0.50)' }}>
+                  <span className="font-semibold" style={{ color: '#E1001A' }}>{reward.points_cost.toLocaleString('fr-BE')} pts</span>
                   <span>Stock : {reward.stock ?? '∞'}</span>
                   <span>{redemptionsByReward[reward.id] ?? 0} échanges</span>
                   {reward.expires_at && <span>Exp. {new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short' }).format(new Date(reward.expires_at))}</span>}
                 </div>
               </div>
               <div className="flex gap-2 shrink-0">
-                <button onClick={() => openEdit(reward)} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                  <Edit2 className="w-4 h-4 text-gray-400" />
+                <button onClick={() => openEdit(reward)} className="p-2 rounded-lg transition-colors" style={{ background: 'rgba(0,0,0,0.04)' }}>
+                  <Edit2 className="w-4 h-4" style={{ color: 'rgba(29,29,31,0.50)' }} />
                 </button>
-                <button onClick={() => toggle(reward)} disabled={togglingId === reward.id} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                <button onClick={() => toggle(reward)} disabled={togglingId === reward.id} className="p-2 rounded-lg transition-colors" style={{ background: 'rgba(0,0,0,0.04)' }}>
                   {togglingId === reward.id
-                    ? <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                    ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'rgba(29,29,31,0.40)' }} />
                     : reward.is_active
-                      ? <ToggleRight className="w-4 h-4 text-emerald-400" />
-                      : <ToggleLeft className="w-4 h-4 text-gray-500" />
+                      ? <ToggleRight className="w-4 h-4" style={{ color: '#34c759' }} />
+                      : <ToggleLeft className="w-4 h-4" style={{ color: 'rgba(29,29,31,0.30)' }} />
                   }
                 </button>
               </div>
@@ -160,30 +164,31 @@ export function RewardsManager({ rewards, redemptionsByReward, clubId }: Props) 
         <form onSubmit={save} className="space-y-4">
           <Input label="Titre *" value={form.title} onChange={e => setField('title', e.target.value)} required />
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Description</label>
+            <label style={labelStyle}>Description</label>
             <textarea value={form.description} onChange={e => setField('description', e.target.value)} rows={2}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-gray-600 resize-none" />
+              className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E1001A] resize-none"
+              style={inputStyle} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Coût en points *</label>
+              <label style={labelStyle}>Coût en points *</label>
               <input type="number" min={1} value={form.points_cost} onChange={e => setField('points_cost', +e.target.value)} required
-                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                className={inputCls} style={inputStyle} />
             </div>
             <Input label="Stock (vide = illimité)" type="number" placeholder="∞" value={form.stock} onChange={e => setField('stock', e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Catégorie</label>
+              <label style={labelStyle}>Catégorie</label>
               <select value={form.category} onChange={e => setField('category', e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className={inputCls} style={inputStyle}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Niveau minimum</label>
+              <label style={labelStyle}>Niveau minimum</label>
               <select value={form.min_loyalty_level} onChange={e => setField('min_loyalty_level', +e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                className={inputCls} style={inputStyle}>
                 {[0, 1, 2, 3, 4].map(l => <option key={l} value={l}>{LOYALTY_CONFIG[l as 0].name}</option>)}
               </select>
             </div>

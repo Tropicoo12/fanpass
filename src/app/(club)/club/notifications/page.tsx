@@ -29,8 +29,8 @@ export default async function NotificationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black">Notifications</h1>
-        <p className="text-gray-400 text-sm mt-1">Envoyez des messages push à vos fans</p>
+        <h1 className="text-2xl font-black" style={{ color: '#1d1d1f' }}>Notifications</h1>
+        <p className="text-sm mt-1" style={{ color: 'rgba(29,29,31,0.55)' }}>Envoyez des messages push à vos fans</p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -40,8 +40,8 @@ export default async function NotificationsPage() {
           { label: 'Total brouillons', value: notifications?.filter(n => !n.sent_at && !n.scheduled_for).length ?? 0 },
         ].map(s => (
           <Card key={s.label} variant="dark" className="text-center">
-            <p className="text-xl font-black">{s.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+            <p className="text-xl font-black" style={{ color: '#1d1d1f' }}>{s.value}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(29,29,31,0.45)' }}>{s.label}</p>
           </Card>
         ))}
       </div>
@@ -50,11 +50,11 @@ export default async function NotificationsPage() {
 
       {/* Sent history */}
       <div>
-        <h2 className="font-bold mb-3">Historique</h2>
+        <h2 className="font-bold mb-3" style={{ color: '#1d1d1f' }}>Historique</h2>
         {!notifications?.length ? (
-          <Card variant="dark" className="text-center py-8 text-gray-500">
-            <Megaphone className="w-8 h-8 mx-auto mb-2 text-gray-600" />
-            Aucune notification envoyée
+          <Card variant="dark" className="text-center py-8">
+            <Megaphone className="w-8 h-8 mx-auto mb-2" style={{ color: 'rgba(29,29,31,0.25)' }} />
+            <p style={{ color: 'rgba(29,29,31,0.45)' }}>Aucune notification envoyée</p>
           </Card>
         ) : (
           <div className="space-y-2">
@@ -63,13 +63,13 @@ export default async function NotificationsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold text-sm">{n.title}</p>
+                      <p className="font-semibold text-sm" style={{ color: '#1d1d1f' }}>{n.title}</p>
                       <Badge variant={n.sent_at ? 'success' : n.scheduled_for ? 'info' : 'neutral'}>
                         {n.sent_at ? 'Envoyée' : n.scheduled_for ? 'Planifiée' : 'Brouillon'}
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-400">{n.body}</p>
-                    <div className="flex gap-3 mt-1.5 text-xs text-gray-500">
+                    <p className="text-xs" style={{ color: 'rgba(29,29,31,0.55)' }}>{n.body}</p>
+                    <div className="flex gap-3 mt-1.5 text-xs" style={{ color: 'rgba(29,29,31,0.40)' }}>
                       <span>Audience : {n.audience}</span>
                       {n.sent_at && <span>{n.sent_count} envois · {new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(n.sent_at))}</span>}
                       {n.scheduled_for && !n.sent_at && <span>Planif. {new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(n.scheduled_for))}</span>}

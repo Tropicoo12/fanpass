@@ -58,10 +58,10 @@ export default async function FansPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black">Fans / CRM</h1>
-          <p className="text-gray-400 text-sm mt-1">{total} supporter{total !== 1 ? 's' : ''} enregistré{total !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-black" style={{ color: '#1d1d1f' }}>Fans / CRM</h1>
+          <p className="text-sm mt-1" style={{ color: 'rgba(29,29,31,0.55)' }}>{total} supporter{total !== 1 ? 's' : ''} enregistré{total !== 1 ? 's' : ''}</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 font-semibold text-sm transition-all">
+        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all" style={{ background: 'rgba(0,0,0,0.05)', color: '#1d1d1f' }}>
           <Download className="w-4 h-4" /> Export CSV
         </button>
       </div>
@@ -74,17 +74,17 @@ export default async function FansPage() {
           { label: 'Gold+', value: goldPlus },
         ].map(s => (
           <Card key={s.label} variant="dark" className="text-center">
-            <p className="text-xl font-black">{s.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+            <p className="text-xl font-black" style={{ color: '#1d1d1f' }}>{s.value}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(29,29,31,0.45)' }}>{s.label}</p>
           </Card>
         ))}
       </div>
 
       {total === 0 ? (
         <Card variant="dark" className="text-center py-12">
-          <Users className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400 font-medium">Aucun fan enregistré</p>
-          <p className="text-gray-500 text-sm mt-1">Les fans apparaîtront ici une fois inscrits</p>
+          <Users className="w-10 h-10 mx-auto mb-3" style={{ color: 'rgba(29,29,31,0.25)' }} />
+          <p className="font-medium" style={{ color: 'rgba(29,29,31,0.55)' }}>Aucun fan enregistré</p>
+          <p className="text-sm mt-1" style={{ color: 'rgba(29,29,31,0.40)' }}>Les fans apparaîtront ici une fois inscrits</p>
         </Card>
       ) : (
         <FansTable

@@ -37,12 +37,13 @@ export default async function ClubRewardsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black">Récompenses</h1>
-          <p className="text-gray-400 text-sm mt-1">Gérez le catalogue de récompenses</p>
+          <h1 className="text-2xl font-black" style={{ color: '#1d1d1f' }}>Récompenses</h1>
+          <p className="text-sm mt-1" style={{ color: 'rgba(29,29,31,0.55)' }}>Gérez le catalogue de récompenses</p>
         </div>
         <Link
           href="/club/rewards/validate"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm font-semibold transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+          style={{ background: 'rgba(225,0,26,0.08)', color: '#E1001A' }}
         >
           <ScanQrCode className="w-4 h-4" /> Valider un code
         </Link>
@@ -55,8 +56,8 @@ export default async function ClubRewardsPage() {
           { label: 'Total récompenses', value: rewards?.length ?? 0 },
         ].map(s => (
           <Card key={s.label} variant="dark" className="text-center">
-            <p className="text-xl font-black">{s.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+            <p className="text-xl font-black" style={{ color: '#1d1d1f' }}>{s.value}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(29,29,31,0.45)' }}>{s.label}</p>
           </Card>
         ))}
       </div>
