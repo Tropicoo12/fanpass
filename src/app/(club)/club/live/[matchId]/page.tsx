@@ -4,9 +4,8 @@ import { notFound } from 'next/navigation'
 import type { Database } from '@/types/database'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { LiveMatchControl } from './LiveMatchControl'
 import { LiveQRDisplay } from './LiveQRDisplay'
-import { PredictionsPanel } from './PredictionsPanel'
+import { MatchTabs } from './MatchTabs'
 
 export default async function LiveMatchPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params
@@ -25,10 +24,16 @@ export default async function LiveMatchPage({ params }: { params: Promise<{ matc
 
   if (!match) notFound()
 
-  const [{ data: activations }, { data: checkinCount }, { data: pronoCount }] = await Promise.all([
+  const [
+    { data: activations },
+    { count: checkinCount },
+    { count: pronoCount },
+    { data: markets },
+  ] = await Promise.all([
     supabase.from('activations').select('*').eq('match_id', match.id).order('created_at', { ascending: false }),
     supabase.from('checkins').select('*', { count: 'exact', head: true }).eq('match_id', match.id),
     supabase.from('pronostics').select('*', { count: 'exact', head: true }).eq('match_id', match.id),
+    supabase.from('match_markets').select('*').eq('match_id', match.id).order('created_at', { ascending: true }),
   ])
 
   return (
@@ -58,8 +63,12 @@ export default async function LiveMatchPage({ params }: { params: Promise<{ matc
       </div>
 
       <LiveQRDisplay matchId={match.id} />
-      <LiveMatchControl match={match} activations={activations ?? []} />
-      <PredictionsPanel match={match} />
+
+      <MatchTabs
+        match={match}
+        activations={activations ?? []}
+        markets={markets ?? []}
+      />
     </div>
   )
 }

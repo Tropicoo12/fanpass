@@ -56,6 +56,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body.status !== undefined) updatePayload.status = body.status
   if (body.home_score !== undefined) updatePayload.home_score = body.home_score
   if (body.away_score !== undefined) updatePayload.away_score = body.away_score
+  if (body.odds_home !== undefined) updatePayload.odds_home = body.odds_home
+  if (body.odds_draw !== undefined) updatePayload.odds_draw = body.odds_draw
+  if (body.odds_away !== undefined) updatePayload.odds_away = body.odds_away
 
   const { data, error } = await admin
     .from('matches')

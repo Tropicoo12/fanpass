@@ -35,7 +35,7 @@ export function SyncOddsButton({ clubId }: { clubId: string }) {
       className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-xs font-medium transition-colors disabled:opacity-50"
     >
       {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-      Sync cotes
+      Synchroniser
     </button>
   )
 }

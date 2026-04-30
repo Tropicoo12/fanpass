@@ -551,49 +551,56 @@ alter table pronostics
   add column if not exists points_bet int,
   add column if not exists odds_multiplier numeric(5,2);
 
+-- Club: team identity for external APIs + last sync timestamp
+alter table clubs
+  add column if not exists team_name text,
+  add column if not exists matches_synced_at timestamptz,
+  add column if not exists football_data_team_id int,
+  add column if not exists competition_code text default 'BSL';
+
 -- Enable realtime for live points badge
 alter publication supabase_realtime add table fan_points;
 
 -- ============================================================
--- MATCH MARKETS & MARKET BETS
--- Run in Supabase SQL editor to add prediction betting
+-- MIGRATIONS — Match Markets & Betting
 -- ============================================================
+
 create table if not exists match_markets (
   id uuid primary key default uuid_generate_v4(),
-  match_id uuid references matches(id) on delete cascade not null,
-  club_id uuid references clubs(id) on delete cascade not null,
-  market_type text not null default 'h2h',
-  title text not null,
+  created_at timestamptz default now(),
+  match_id uuid not null references matches(id) on delete cascade,
+  club_id uuid not null references clubs(id) on delete cascade,
+  market_key text not null,
+  market_label text not null,
+  market_emoji text not null default '🎯',
   options jsonb not null default '[]',
-  is_active boolean not null default true,
-  min_bet int not null default 25,
-  max_bet int not null default 500,
-  correct_answer text,
-  status text not null default 'open',
-  created_at timestamptz default now()
+  is_published boolean not null default false,
+  is_settled boolean not null default false,
+  closes_at timestamptz,
+  correct_option text,
+  bet_count int not null default 0
 );
 
-create table if not exists market_bets (
+create table if not exists match_bets (
   id uuid primary key default uuid_generate_v4(),
-  user_id uuid references auth.users(id) on delete cascade not null,
-  market_id uuid references match_markets(id) on delete cascade not null,
-  match_id uuid references matches(id) not null,
-  club_id uuid references clubs(id) not null,
-  selection text not null,
-  odds_at_bet numeric(6,2) not null,
-  points_bet int not null check (points_bet > 0),
-  status text not null default 'pending',
-  points_earned int,
   created_at timestamptz default now(),
-  unique (user_id, market_id)
+  user_id uuid not null references profiles(id) on delete cascade,
+  match_market_id uuid not null references match_markets(id) on delete cascade,
+  match_id uuid not null references matches(id) on delete cascade,
+  club_id uuid not null references clubs(id) on delete cascade,
+  selected_option text not null,
+  points_staked int not null check (points_staked > 0),
+  odds numeric(5,2) not null,
+  potential_win int not null,
+  points_won int,
+  is_settled boolean not null default false,
+  is_correct boolean,
+  unique(user_id, match_market_id)
 );
 
 alter table match_markets enable row level security;
-alter table market_bets enable row level security;
+alter table match_bets enable row level security;
 
-drop policy if exists "match_markets_select" on match_markets;
-drop policy if exists "match_markets_insert" on match_markets;
-drop policy if exists "match_markets_update" on match_markets;
 create policy "match_markets_select" on match_markets for select using (true);
 create policy "match_markets_insert" on match_markets for insert with check (
   auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
@@ -601,8 +608,9 @@ create policy "match_markets_insert" on match_markets for insert with check (
 create policy "match_markets_update" on match_markets for update using (
   auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
 );
+create policy "match_markets_delete" on match_markets for delete using (
+  auth.uid() in (select id from profiles where role in ('club_admin', 'super_admin'))
+);
 
-drop policy if exists "market_bets_select" on market_bets;
-drop policy if exists "market_bets_insert" on market_bets;
-create policy "market_bets_select" on market_bets for select using (auth.uid() = user_id);
-create policy "market_bets_insert" on market_bets for insert with check (auth.uid() = user_id);
+create policy "match_bets_select" on match_bets for select using (auth.uid() = user_id);
+create policy "match_bets_insert" on match_bets for insert with check (auth.uid() = user_id);

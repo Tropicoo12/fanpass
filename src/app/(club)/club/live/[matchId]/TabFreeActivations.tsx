@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { Zap, Plus, Play, Square, Check, Users, Loader2 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
@@ -13,14 +12,12 @@ import type { Match, Activation } from '@/types/database'
 interface Props {
   match: Match
   activations: Activation[]
-  compact?: boolean
 }
 
 const ACTIVATION_TYPES = [
   { value: 'trivia',     label: '🧠 Trivia',     desc: 'Question avec bonne réponse' },
   { value: 'poll',       label: '📊 Sondage',     desc: 'Vote sans bonne réponse'     },
   { value: 'moment',     label: '📸 Moment',      desc: 'Partage de moment fort'      },
-  { value: 'prediction', label: '⚽ Pronostic live', desc: 'Prédiction en temps réel' },
 ]
 
 const STATUS_COLORS: Record<string, string> = {
@@ -29,17 +26,13 @@ const STATUS_COLORS: Record<string, string> = {
   closed:    'text-gray-400',
 }
 
-export function LiveMatchControl({ match, activations: initialActivations, compact = false }: Props) {
+export function TabFreeActivations({ match, activations: initialActivations }: Props) {
   const router = useRouter()
   const { toast } = useToast()
 
   const [activationList, setActivationList] = useState<Activation[]>(initialActivations)
   const [creating, setCreating] = useState(false)
   const [loadingId, setLoadingId] = useState<string | null>(null)
-  const [matchStatus, setMatchStatus] = useState(match.status)
-  const [updatingMatch, setUpdatingMatch] = useState(false)
-  const [homeScore, setHomeScore] = useState(match.home_score ?? 0)
-  const [awayScore, setAwayScore] = useState(match.away_score ?? 0)
 
   const [form, setForm] = useState({
     title: '',
@@ -50,7 +43,7 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
     points_reward: 25,
   })
 
-  function setField(k: string, v: any) { setForm(f => ({ ...f, [k]: v })) }
+  function setField(k: string, v: string | number) { setForm(f => ({ ...f, [k]: v })) }
   function setOption(i: number, v: string) {
     setForm(f => { const o = [...f.options]; o[i] = v; return { ...f, options: o } })
   }
@@ -109,107 +102,12 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
     }
   }
 
-  async function updateMatchStatus(status: string) {
-    setUpdatingMatch(true)
-    try {
-      const res = await fetch(`/api/club/matches/${match.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, home_score: homeScore, away_score: awayScore }),
-      })
-      if (!res.ok) { toast('Erreur', 'error'); return }
-      setMatchStatus(status as any)
-      toast(`Match mis à jour : ${status}`, 'success')
-      router.refresh()
-    } catch {
-      toast('Erreur réseau', 'error')
-    } finally {
-      setUpdatingMatch(false)
-    }
-  }
-
-  if (compact) {
-    return (
-      <Card variant="dark">
-        <h2 className="font-bold mb-4">Contrôle du match</h2>
-        <div className="flex items-center gap-3 flex-wrap">
-          {matchStatus === 'upcoming' && (
-            <Button onClick={() => updateMatchStatus('live')} disabled={updatingMatch} variant="primary">
-              {updatingMatch ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-              Démarrer le match
-            </Button>
-          )}
-          {matchStatus === 'live' && (
-            <>
-              <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl">
-                <input type="number" min={0} max={20} value={homeScore} onChange={e => setHomeScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none" />
-                <span className="text-gray-500 font-black">–</span>
-                <input type="number" min={0} max={20} value={awayScore} onChange={e => setAwayScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none" />
-              </div>
-              <Button variant="secondary" onClick={() => updateMatchStatus('live')} disabled={updatingMatch}>
-                Sauvegarder score
-              </Button>
-              <Button variant="danger" onClick={() => updateMatchStatus('finished')} disabled={updatingMatch}>
-                <Square className="w-4 h-4 mr-2" /> Terminer
-              </Button>
-            </>
-          )}
-          {matchStatus === 'finished' && (
-            <div className="flex items-center gap-2 text-emerald-400">
-              <Check className="w-4 h-4" />
-              <span className="text-sm font-semibold">Match terminé · Score final : {homeScore} – {awayScore}</span>
-            </div>
-          )}
-        </div>
-      </Card>
-    )
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Match control */}
-      <Card variant="dark">
-        <h2 className="font-bold mb-4">Contrôle du match</h2>
-        <div className="flex items-center gap-3 flex-wrap">
-          {matchStatus === 'upcoming' && (
-            <Button onClick={() => updateMatchStatus('live')} disabled={updatingMatch} variant="primary">
-              {updatingMatch ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-              Démarrer le match
-            </Button>
-          )}
-          {matchStatus === 'live' && (
-            <>
-              <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl">
-                <input type="number" min={0} max={20} value={homeScore} onChange={e => setHomeScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none" />
-                <span className="text-gray-500 font-black">–</span>
-                <input type="number" min={0} max={20} value={awayScore} onChange={e => setAwayScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none" />
-              </div>
-              <Button variant="secondary" onClick={() => updateMatchStatus('live')} disabled={updatingMatch}>
-                Sauvegarder score
-              </Button>
-              <Button variant="danger" onClick={() => updateMatchStatus('finished')} disabled={updatingMatch}>
-                <Square className="w-4 h-4 mr-2" /> Terminer
-              </Button>
-            </>
-          )}
-          {matchStatus === 'finished' && (
-            <div className="flex items-center gap-2 text-emerald-400">
-              <Check className="w-4 h-4" />
-              <span className="text-sm font-semibold">Match terminé · Score final : {homeScore} – {awayScore}</span>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Activations */}
+    <div className="space-y-5">
       <Card variant="dark">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" /> Activations
+            <Zap className="w-4 h-4 text-amber-400" /> Activations libres
           </h2>
           <Button onClick={() => setCreating(true)} size="sm">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Nouvelle
@@ -222,7 +120,7 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
 
         <div className="space-y-3">
           {activationList.map(act => (
-            <div key={act.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/8">
+            <div key={act.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/[0.08]">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-bold uppercase tracking-wide ${STATUS_COLORS[act.status]}`}>
@@ -253,7 +151,6 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
         </div>
       </Card>
 
-      {/* Create activation modal */}
       <Modal open={creating} onClose={() => setCreating(false)} title="Nouvelle activation" size="lg">
         <form onSubmit={createActivation} className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
@@ -303,7 +200,7 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
           </div>
 
           <Button type="submit" disabled={loadingId === 'create'} className="w-full">
-            {loadingId === 'create' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer l\'activation'}
+            {loadingId === 'create' ? <Loader2 className="w-4 h-4 animate-spin" /> : "Créer l'activation"}
           </Button>
         </form>
       </Modal>
