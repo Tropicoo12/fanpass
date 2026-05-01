@@ -1,11 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
-import { Globe, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, User, Loader2, Zap } from 'lucide-react'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -24,7 +21,7 @@ export default function SignupPage() {
     setError('')
     if (password.length < 8) { setError('Mot de passe trop court (8 caractères minimum).'); return }
     setLoading(true)
-    const { error } = await supabase.auth.signUp({
+    const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -32,84 +29,96 @@ export default function SignupPage() {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
-    if (error) {
-      setError(error.message)
+    if (authError) {
+      setError(authError.message)
       setLoading(false)
       return
     }
     setDone(true)
   }
 
-  async function handleGoogle() {
-    setLoading(true)
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
+  const inputStyle = {
+    width: '100%',
+    padding: '13px 14px 13px 42px',
+    borderRadius: 14,
+    border: '1px solid rgba(0,0,0,0.12)',
+    background: '#f5f5f7',
+    color: '#1d1d1f',
+    fontSize: 15,
+    outline: 'none',
+    boxSizing: 'border-box' as const,
   }
 
   if (done) {
     return (
-      <div className="text-center space-y-4">
-        <div className="text-5xl">📬</div>
-        <h2 className="text-xl font-black">Vérifie ton email</h2>
-        <p className="text-gray-400 text-sm">
-          Un lien de confirmation a été envoyé à <strong className="text-white">{email}</strong>.
-          Clique dessus pour activer ton compte.
-        </p>
-        <Button variant="secondary" onClick={() => router.push('/auth/login')} className="w-full">
-          Retour à la connexion
-        </Button>
+      <div>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 28 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#1d1d1f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Zap size={20} color="#ffffff" fill="#ffffff" />
+          </div>
+          <div>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1d1d1f', lineHeight: 1.1 }}>FanPass</p>
+            <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: 'rgba(29,29,31,0.40)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Espace supporter</p>
+          </div>
+        </div>
+        <div style={{ background: '#ffffff', borderRadius: 20, border: '1px solid rgba(0,0,0,0.08)', padding: '32px 24px', boxShadow: '0 2px 16px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+          <div style={{ fontSize: 44, marginBottom: 16 }}>📬</div>
+          <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: '#1d1d1f' }}>Vérifie ton email</h2>
+          <p style={{ margin: '0 0 24px', fontSize: 14, color: 'rgba(29,29,31,0.55)', lineHeight: 1.6 }}>
+            Un lien de confirmation a été envoyé à{' '}
+            <strong style={{ color: '#1d1d1f' }}>{email}</strong>.
+            Clique dessus pour activer ton compte.
+          </p>
+          <button
+            onClick={() => router.push('/auth/login')}
+            style={{ width: '100%', padding: '14px 0', borderRadius: 14, background: '#f5f5f7', color: '#1d1d1f', fontSize: 15, fontWeight: 600, border: '1px solid rgba(0,0,0,0.10)', cursor: 'pointer' }}
+          >
+            Retour à la connexion
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-black">Créer un compte</h2>
-        <p className="text-gray-400 text-sm mt-1">Rejoins la communauté des fans</p>
+    <div>
+      {/* Logo */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 28 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#1d1d1f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Zap size={20} color="#ffffff" fill="#ffffff" />
+        </div>
+        <div>
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1d1d1f', lineHeight: 1.1 }}>FanPass</p>
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: 'rgba(29,29,31,0.40)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Espace supporter</p>
+        </div>
       </div>
 
-      <button
-        onClick={handleGoogle}
-        disabled={loading}
-        className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 font-medium transition-all active:scale-95 disabled:opacity-50"
-      >
-        <Globe className="w-4 h-4" />
-        Continuer avec Google
-      </button>
+      {/* Card */}
+      <div style={{ background: '#ffffff', borderRadius: 20, border: '1px solid rgba(0,0,0,0.08)', padding: '28px 24px', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>
+        <h1 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: '#1d1d1f' }}>Créer un compte</h1>
+        <p style={{ margin: '0 0 24px', fontSize: 13, color: 'rgba(29,29,31,0.45)' }}>
+          Rejoins la communauté des fans
+        </p>
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-white/10" />
-        <span className="text-xs text-gray-500">ou</span>
-        <div className="flex-1 h-px bg-white/10" />
-      </div>
+        <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Full name */}
+          <div style={{ position: 'relative' }}>
+            <User size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'rgba(29,29,31,0.35)', pointerEvents: 'none' }} />
+            <input style={inputStyle} type="text" placeholder="Prénom et nom" value={fullName} onChange={e => setFullName(e.target.value)} required autoComplete="name" autoFocus />
+          </div>
 
-      <form onSubmit={handleSignup} className="space-y-4">
-        <Input
-          id="name"
-          label="Prénom et nom"
-          placeholder="Marc Dupont"
-          value={fullName}
-          onChange={e => setFullName(e.target.value)}
-          required
-          autoComplete="name"
-        />
-        <Input
-          id="email"
-          type="email"
-          label="Email"
-          placeholder="fan@club.be"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-        />
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-gray-300">Mot de passe</label>
-          <div className="relative">
+          {/* Email */}
+          <div style={{ position: 'relative' }}>
+            <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'rgba(29,29,31,0.35)', pointerEvents: 'none' }} />
+            <input style={inputStyle} type="email" placeholder="ton@email.com" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
+          </div>
+
+          {/* Password */}
+          <div style={{ position: 'relative' }}>
+            <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'rgba(29,29,31,0.35)', pointerEvents: 'none' }} />
             <input
+              style={{ ...inputStyle, paddingRight: 44 }}
               type={showPw ? 'text' : 'password'}
               placeholder="8 caractères minimum"
               value={password}
@@ -117,34 +126,33 @@ export default function SignupPage() {
               required
               minLength={8}
               autoComplete="new-password"
-              className="w-full px-4 py-3 pr-11 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50 transition-all"
             />
-            <button
-              type="button"
-              onClick={() => setShowPw(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-            >
-              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            <button type="button" onClick={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(29,29,31,0.35)', padding: 0, display: 'flex' }}>
+              {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-        </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p style={{ margin: 0, fontSize: 13, color: '#c62828', background: '#ffebee', padding: '10px 14px', borderRadius: 10 }}>{error}</p>}
 
-        <Button type="submit" disabled={loading} className="w-full py-3">
-          {loading ? 'Création…' : 'Créer mon compte'}
-        </Button>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ marginTop: 4, padding: '14px 0', borderRadius: 14, background: '#1d1d1f', color: '#ffffff', fontSize: 15, fontWeight: 700, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            {loading ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : 'Créer mon compte'}
+          </button>
 
-        <p className="text-center text-xs text-gray-500">
-          En t'inscrivant, tu acceptes les conditions d'utilisation.
-        </p>
-      </form>
+          <p style={{ margin: 0, textAlign: 'center', fontSize: 12, color: 'rgba(29,29,31,0.35)' }}>
+            En t'inscrivant, tu acceptes les conditions d'utilisation.
+          </p>
+        </form>
+      </div>
 
-      <p className="text-center text-sm text-gray-400">
+      <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'rgba(29,29,31,0.45)' }}>
         Déjà un compte ?{' '}
-        <Link href="/auth/login" className="text-emerald-400 hover:text-emerald-300 font-medium">
+        <a href="/auth/login" style={{ color: '#1d1d1f', fontWeight: 600, textDecoration: 'underline' }}>
           Se connecter
-        </Link>
+        </a>
       </p>
     </div>
   )

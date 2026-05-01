@@ -46,16 +46,41 @@ export async function getAdminClubId(): Promise<string | null> {
   return auth?.clubId ?? null
 }
 
-/** Returns the id of the first club in the database (fan-side default). */
+/** Returns the club_id for the logged-in fan (from their profile), or the first club as fallback. */
 export async function getDefaultClubId(): Promise<string | null> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('club_id')
+      .eq('id', user.id)
+      .single()
+    if (profile?.club_id) return profile.club_id
+  }
   const { data } = await supabase.from('clubs').select('id').limit(1).single()
   return data?.id ?? null
 }
 
-/** Returns full club data including branding (fan-side default). */
+/** Returns full club data for the logged-in fan (from their profile), or the first club as fallback. */
 export async function getDefaultClub(): Promise<{ id: string; primary_color: string; name: string; logo_url: string | null } | null> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('club_id')
+      .eq('id', user.id)
+      .single()
+    if (profile?.club_id) {
+      const { data: club } = await supabase
+        .from('clubs')
+        .select('id, name, primary_color, logo_url')
+        .eq('id', profile.club_id)
+        .single()
+      if (club) return club
+    }
+  }
   const { data } = await supabase.from('clubs').select('id, name, primary_color, logo_url').limit(1).single()
   return data ?? null
 }
