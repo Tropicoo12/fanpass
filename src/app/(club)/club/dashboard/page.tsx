@@ -4,7 +4,7 @@ import type { Database } from '@/types/database'
 import { LOYALTY_CONFIG, getLoyaltyLevel } from '@/types/database'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getAdminClubId, getDefaultClub } from '@/lib/club'
+import { getAdminClubId } from '@/lib/club'
 import { Users, Star, TrendingUp, Repeat2, ArrowUp, ArrowDown, Calendar, Zap } from 'lucide-react'
 
 function KpiCard({
@@ -87,9 +87,14 @@ export default async function DashboardPage() {
   )
 
   const CLUB_ID = await getAdminClubId()
-  if (!CLUB_ID) redirect('/auth/login')
+  if (!CLUB_ID) redirect('/admin')
 
-  const club = await getDefaultClub()
+  const { data: club } = await supabase
+    .from('clubs')
+    .select('id, name, primary_color, logo_url')
+    .eq('id', CLUB_ID)
+    .single()
+
   const primaryColor = club?.primary_color ?? '#E1001A'
 
   const [

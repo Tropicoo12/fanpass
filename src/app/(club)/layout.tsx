@@ -17,7 +17,7 @@ export default async function ClubLayout({ children }: { children: React.ReactNo
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login')
+  if (!user) redirect('/admin')
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -37,6 +37,7 @@ export default async function ClubLayout({ children }: { children: React.ReactNo
     .from('matches')
     .select('id, home_team, away_team')
     .eq('status', 'live')
+    .eq('club_id', clubId ?? '')
     .limit(1)
     .maybeSingle()
 
