@@ -3,9 +3,14 @@ import './globals.css'
 import { ToastProvider } from '@/components/ui/Toast'
 
 export const metadata: Metadata = {
-  title: 'FanPass — Gamification Stade',
+  title: 'FanPass',
   description: 'Scanne, pronostique, gagne des points et débloque des récompenses exclusives.',
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'FanPass',
+  },
 }
 
 export const viewport: Viewport = {
@@ -13,6 +18,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

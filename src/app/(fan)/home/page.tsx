@@ -35,6 +35,7 @@ export default async function HomePage() {
   const club = await getDefaultClub()
   const CLUB_ID = club?.id ?? ''
   const primaryColor = club?.primary_color ?? '#E1001A'
+  const clubLogoUrl = club?.logo_url ?? null
 
   const [
     { data: profile },
@@ -103,9 +104,19 @@ export default async function HomePage() {
           justifyContent: 'space-between',
         }}
       >
-        <div>
-          <p style={{ fontSize: 12, color: 'rgba(29,29,31,0.45)', margin: 0 }}>{greeting},</p>
-          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>{firstName}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {clubLogoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={clubLogoUrl}
+              alt={club?.name ?? 'Club'}
+              style={{ width: 32, height: 32, objectFit: 'contain' }}
+            />
+          )}
+          <div>
+            <p style={{ fontSize: 12, color: 'rgba(29,29,31,0.45)', margin: 0 }}>{greeting},</p>
+            <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>{firstName}</h1>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Link
@@ -124,7 +135,8 @@ export default async function HomePage() {
           >
             <Bell size={16} />
           </Link>
-          <div
+          <Link
+            href="/profile"
             style={{
               width: 36,
               height: 36,
@@ -136,10 +148,11 @@ export default async function HomePage() {
               color: '#fff',
               fontSize: 13,
               fontWeight: 700,
+              textDecoration: 'none',
             }}
           >
             {initials}
-          </div>
+          </Link>
         </div>
       </div>
 
@@ -417,7 +430,12 @@ export default async function HomePage() {
         )}
 
         {/* PARIS EN DIRECT — stadium gated (client component) */}
-        <StadiumGatedSection clubId={CLUB_ID || null} primaryColor={primaryColor} />
+        <StadiumGatedSection
+          matchId={nextMatch?.status === 'live' ? nextMatch.id : null}
+          isCheckedIn={alreadyCheckedIn}
+          userPoints={totalPoints}
+          primaryColor={primaryColor}
+        />
 
         {/* QUICK ACTIONS */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>

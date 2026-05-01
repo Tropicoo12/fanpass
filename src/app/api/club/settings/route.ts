@@ -19,22 +19,33 @@ export async function PATCH(request: NextRequest) {
   if (!clubId) return NextResponse.json({ error: 'Club introuvable' }, { status: 404 })
 
   const body = await request.json()
-  const { team_name, football_data_team_id, competition_code } = body
+  const {
+    name, logo_url, primary_color, secondary_color, stadium_name, city,
+    team_name, football_data_team_id, competition_code,
+  } = body
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceKey) return NextResponse.json({ error: 'Configuration serveur manquante' }, { status: 500 })
 
   const admin = createAdminClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
 
+  const update: Record<string, unknown> = {}
+  if (name)              update.name = name
+  if (logo_url !== undefined) update.logo_url = logo_url
+  if (primary_color)     update.primary_color = primary_color
+  if (secondary_color)   update.secondary_color = secondary_color
+  if (stadium_name !== undefined) update.stadium_name = stadium_name
+  if (city !== undefined)         update.city = city
+  if (team_name !== undefined)    update.team_name = team_name
+  if (football_data_team_id !== undefined) update.football_data_team_id = football_data_team_id
+  if (competition_code !== undefined) {
+    update.competition_code = competition_code
+    update.matches_synced_at = null
+  }
+
   const { error } = await admin
     .from('clubs')
-    .update({
-      team_name: team_name ?? undefined,
-      football_data_team_id: football_data_team_id ?? undefined,
-      competition_code: competition_code ?? undefined,
-      // Reset sync time so next page load triggers a fresh sync
-      matches_synced_at: null,
-    })
+    .update(update as any)
     .eq('id', clubId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

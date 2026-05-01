@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { LiveQRDisplay } from './LiveQRDisplay'
 import { MatchTabs } from './MatchTabs'
+import { SettleMatchButton } from './SettleMatchButton'
 
 export default async function LiveMatchPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params
@@ -43,9 +44,14 @@ export default async function LiveMatchPage({ params }: { params: Promise<{ matc
           <h1 className="text-2xl font-black">Match Live</h1>
           <p className="text-gray-400 text-sm mt-1">{match.home_team} vs {match.away_team}</p>
         </div>
-        <Badge variant={match.status === 'live' ? 'success' : match.status === 'upcoming' ? 'info' : 'neutral'}>
-          {match.status === 'live' ? '🔴 En direct' : match.status === 'upcoming' ? 'À venir' : 'Terminé'}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant={match.status === 'live' ? 'success' : match.status === 'upcoming' ? 'info' : 'neutral'}>
+            {match.status === 'live' ? '🔴 En direct' : match.status === 'upcoming' ? 'À venir' : 'Terminé'}
+          </Badge>
+          {match.status !== 'cancelled' && (
+            <SettleMatchButton match={match} pronoCount={pronoCount ?? 0} />
+          )}
+        </div>
       </div>
 
       {/* Match stats */}

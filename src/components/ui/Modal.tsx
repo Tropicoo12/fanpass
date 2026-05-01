@@ -35,7 +35,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
       onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
       <div className={cn(
-        'relative w-full bg-[#1a1a2e] border border-white/10 rounded-2xl shadow-2xl',
+        'relative w-full bg-[#1a1a2e] border border-white/10 rounded-2xl shadow-2xl text-white',
         'animate-in slide-in-from-bottom-4 duration-200',
         size === 'sm' && 'max-w-sm',
         size === 'md' && 'max-w-md',

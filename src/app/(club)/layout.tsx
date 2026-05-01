@@ -4,8 +4,9 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Database } from '@/types/database'
 import { ClubSidebarNav, ClubMobileNav } from '@/components/ClubNav'
-import { getDefaultClub } from '@/lib/club'
-import { Zap, ChevronDown } from 'lucide-react'
+import { ClubSelector } from '@/components/ClubSelector'
+import { getAdminClubId } from '@/lib/club'
+import { Zap } from 'lucide-react'
 
 export default async function ClubLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -24,7 +25,11 @@ export default async function ClubLayout({ children }: { children: React.ReactNo
     .eq('id', user.id)
     .single()
 
-  const club = await getDefaultClub()
+  const clubId = await getAdminClubId()
+
+  // Fetch current club + all clubs (for super_admin selector)
+  const { data: allClubs } = await supabase.from('clubs').select('id, name, primary_color').order('name')
+  const club = allClubs?.find(c => c.id === clubId) ?? allClubs?.[0] ?? null
   const primaryColor = club?.primary_color ?? '#E1001A'
   const clubName = club?.name ?? 'Mon Club'
 
@@ -85,7 +90,7 @@ export default async function ClubLayout({ children }: { children: React.ReactNo
         </div>
 
         {/* Nav */}
-        <ClubSidebarNav primaryColor={primaryColor} />
+        <ClubSidebarNav primaryColor={primaryColor} userRole={profile?.role ?? 'club_admin'} />
 
         {/* Match Day button */}
         <div style={{ padding: '0 12px 12px' }}>
@@ -144,30 +149,13 @@ export default async function ClubLayout({ children }: { children: React.ReactNo
 
         {/* Club selector */}
         <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                background: primaryColor,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 700,
-                color: '#fff',
-                flexShrink: 0,
-              }}
-            >
-              {clubName[0]}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#1d1d1f', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{clubName}</p>
-              <p style={{ fontSize: 10, color: 'rgba(29,29,31,0.40)', margin: 0, textTransform: 'capitalize' }}>{profile?.role?.replace('_', ' ') ?? 'Admin'}</p>
-            </div>
-            <ChevronDown size={14} color="rgba(29,29,31,0.35)" />
-          </div>
+          <ClubSelector
+            clubs={allClubs ?? []}
+            currentClubId={club?.id ?? ''}
+            primaryColor={primaryColor}
+            clubName={clubName}
+            userRole={profile?.role ?? 'club_admin'}
+          />
         </div>
       </aside>
 
