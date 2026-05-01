@@ -44,6 +44,7 @@ export default async function HomePage() {
     { data: featuredRewards },
     { data: myCheckins },
     { data: topFans },
+    { data: myRedemptions },
   ] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', user.id).single(),
     supabase.from('fan_points').select('total_points, season_points, lifetime_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
@@ -51,7 +52,8 @@ export default async function HomePage() {
     supabase.from('pronostics').select('*, matches(home_team, away_team, match_date, status, home_score, away_score)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
     supabase.from('rewards').select('*').eq('club_id', CLUB_ID).eq('is_active', true).order('sort_order').limit(6),
     supabase.from('checkins').select('match_id').eq('user_id', user.id),
-    supabase.from('leaderboard').select('*').eq('club_id', CLUB_ID).order('rank').limit(5),
+    supabase.from('leaderboard').select('*').eq('club_id', CLUB_ID).order('season_points', { ascending: false }).limit(5),
+    supabase.from('redemptions').select('*, rewards(title, category)').eq('user_id', user.id).in('status', ['pending', 'confirmed']).order('created_at', { ascending: false }).limit(5),
   ])
 
   const totalPoints = pointsData?.total_points ?? 0
@@ -501,8 +503,8 @@ export default async function HomePage() {
           </div>
         )}
 
-        {/* LEADERBOARD AMIS */}
-        {topFans && topFans.length > 0 && (
+        {/* MES RECOMPENSES */}
+        {myRedemptions && myRedemptions.length > 0 && (
           <div
             style={{
               background: '#ffffff',
@@ -512,48 +514,116 @@ export default async function HomePage() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>Classement</h2>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>Mes récompenses</h2>
+              <Link href="/rewards" style={{ fontSize: 12, color: primaryColor, textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
+                Tout voir <ChevronRight size={12} />
+              </Link>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {myRedemptions.map((r: any, idx: number) => {
+                const reward = r.rewards
+                const emoji = reward?.category === 'merchandise' ? '👕' : reward?.category === 'experience' ? '🏆' : reward?.category === 'discount' ? '🏷️' : reward?.category === 'vip' ? '🎫' : '🎁'
+                const statusColor = r.status === 'confirmed' ? '#34c759' : r.status === 'pending' ? '#c8860a' : 'rgba(29,29,31,0.40)'
+                const statusLabel = r.status === 'confirmed' ? 'Confirmé' : r.status === 'pending' ? 'En attente' : r.status
+                return (
+                  <div
+                    key={r.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      paddingTop: idx === 0 ? 0 : 12, paddingBottom: 12,
+                      borderBottom: idx < myRedemptions.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+                    }}
+                  >
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 12,
+                      background: '#f5f5f7', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 20, flexShrink: 0,
+                    }}>
+                      {emoji}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#1d1d1f', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {reward?.title ?? 'Récompense'}
+                      </p>
+                      <p style={{ fontSize: 11, color: 'rgba(29,29,31,0.45)', margin: '2px 0 0' }}>
+                        Code : <span style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: 1 }}>{r.redemption_code}</span>
+                      </p>
+                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700,
+                      color: statusColor,
+                      background: statusColor + '15',
+                      padding: '3px 8px', borderRadius: 100,
+                    }}>
+                      {statusLabel}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* LEADERBOARD SAISON */}
+        {topFans && topFans.length > 0 && (
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 20,
+              border: '1px solid rgba(0,0,0,0.08)',
+              padding: 20,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>Classement saison</h2>
               <Link href="/classement" style={{ fontSize: 12, color: primaryColor, textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
                 Voir tout <ChevronRight size={12} />
               </Link>
             </div>
+            <p style={{ fontSize: 11, color: 'rgba(29,29,31,0.40)', margin: '0 0 14px' }}>
+              🔄 Réinitialisé tous les 2 mois · tes points disponibles ne changent jamais
+            </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {topFans.map((fan, i) => {
                 const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null
                 const level = getLoyaltyLevel(fan.total_points ?? 0)
                 const levelConf = LOYALTY_CONFIG[level]
+                const isMe = fan.user_id === user.id
                 return (
-                  <div key={fan.user_id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div key={fan.user_id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: isMe ? '6px 8px' : '0',
+                    borderRadius: isMe ? 10 : 0,
+                    background: isMe ? primaryColor + '08' : 'transparent',
+                  }}>
                     <span style={{ width: 24, textAlign: 'center', fontSize: 14 }}>
                       {rankEmoji ?? <span style={{ fontSize: 12, color: 'rgba(29,29,31,0.40)', fontWeight: 600 }}>#{i + 1}</span>}
                     </span>
                     <div
                       style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: '50%',
-                        background: primaryColor + '20',
-                        border: `1px solid ${primaryColor}30`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: primaryColor,
+                        width: 34, height: 34, borderRadius: '50%',
+                        background: isMe ? primaryColor + '20' : '#f5f5f7',
+                        border: isMe ? `1px solid ${primaryColor}30` : '1px solid rgba(0,0,0,0.06)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 700,
+                        color: isMe ? primaryColor : 'rgba(29,29,31,0.50)',
                         flexShrink: 0,
                       }}
                     >
                       {fan.full_name?.[0]?.toUpperCase() ?? '?'}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: '#1d1d1f', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {fan.full_name ?? fan.username ?? 'Anonyme'}
+                      <p style={{ fontSize: 13, fontWeight: isMe ? 700 : 600, color: '#1d1d1f', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {fan.full_name ?? fan.username ?? 'Anonyme'}{isMe ? ' (toi)' : ''}
                       </p>
                       <p style={{ fontSize: 11, color: levelConf.color, margin: 0, fontWeight: 500 }}>{levelConf.name}</p>
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1d1d1f' }}>
-                      {(fan.total_points ?? 0).toLocaleString('fr-BE')}
-                    </span>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: '#1d1d1f', margin: 0 }}>
+                        {(fan.season_points ?? 0).toLocaleString('fr-BE')}
+                      </p>
+                      <p style={{ fontSize: 10, color: 'rgba(29,29,31,0.40)', margin: 0 }}>pts saison</p>
+                    </div>
                   </div>
                 )
               })}

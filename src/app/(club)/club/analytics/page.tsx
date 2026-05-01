@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { redirect } from 'next/navigation'
 import { getAdminClubId } from '@/lib/club'
 import { AnalyticsCharts } from './AnalyticsCharts'
+import { AnalyticsAI } from './AnalyticsAI'
 
 export default async function AnalyticsPage() {
   const cookieStore = await cookies()
@@ -74,6 +75,49 @@ export default async function AnalyticsPage() {
     .slice(0, 8)
     .map(a => ({ name: a.title.slice(0, 20), responses: a.response_count, type: a.type }))
 
+  // Auto insights (computed deterministically)
+  const avgCheckins = checkinsByMatch.length > 0
+    ? Math.round(checkinsByMatch.reduce((a, m) => a + m.checkins, 0) / checkinsByMatch.length)
+    : 0
+  const churnRisk = (fans ?? []).filter(f => (f.total_points ?? 0) < 100).length
+  const redeemReady = (fans ?? []).filter(f => (f.total_points ?? 0) >= 500).length
+  const topActivationType = activationData.sort((a, b) => b.responses - a.responses)[0]
+
+  const autoInsights = [
+    {
+      emoji: '📊',
+      title: 'Engagement matchs',
+      body: avgCheckins > 0
+        ? `Moyenne de ${avgCheckins} check-in${avgCheckins > 1 ? 's' : ''} par match sur les 10 derniers.`
+        : 'Aucun check-in enregistré pour le moment.',
+      color: '#1565c0',
+    },
+    {
+      emoji: '⚠️',
+      title: 'Risque churn',
+      body: churnRisk > 0
+        ? `${churnRisk} fan${churnRisk > 1 ? 's' : ''} (${Math.round(churnRisk / Math.max(totalFans, 1) * 100)}%) ont moins de 100 points — pense à les réengager.`
+        : 'Tous tes fans sont actifs, aucun risque churn détecté.',
+      color: '#c8860a',
+    },
+    {
+      emoji: '🎁',
+      title: 'Opportunité récompenses',
+      body: redeemReady > 0
+        ? `${redeemReady} fan${redeemReady > 1 ? 's ont' : ' a'} assez de points pour échanger une récompense.`
+        : 'Aucun fan n\'a encore assez de points pour une récompense.',
+      color: '#2e7d32',
+    },
+    {
+      emoji: '⚡',
+      title: 'Meilleure activation',
+      body: topActivationType
+        ? `"${topActivationType.name}" est ton activation la plus populaire avec ${topActivationType.responses} réponse${topActivationType.responses > 1 ? 's' : ''}.`
+        : 'Lance des activations pour voir lesquelles résonnent le plus.',
+      color: '#6a1b9a',
+    },
+  ]
+
   return (
     <div className="space-y-8">
       <div>
@@ -103,6 +147,8 @@ export default async function AnalyticsPage() {
         activationData={activationData}
         pointsTypeData={pointsTypeData}
       />
+
+      <AnalyticsAI insights={autoInsights} clubId={CLUB_ID} />
     </div>
   )
 }
