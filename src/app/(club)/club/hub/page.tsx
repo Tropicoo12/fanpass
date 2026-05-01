@@ -4,6 +4,7 @@ import { PlusCircle, Users, Zap, Building2 } from 'lucide-react'
 import { assertClubAdmin } from '@/lib/club'
 import { createClient } from '@/lib/supabase/server'
 import { ClubHubCard } from '@/components/ClubHubCard'
+import { InviteAdminButton } from './InviteAdminButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -81,6 +82,8 @@ export default async function ClubHubPage() {
             Vue globale de tous les clubs sur la plateforme
           </p>
         </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <InviteAdminButton clubs={(clubs ?? []).map(c => ({ id: c.id, name: c.name }))} />
         <Link
           href="/club/onboarding"
           style={{
@@ -100,6 +103,7 @@ export default async function ClubHubPage() {
           <PlusCircle size={16} />
           Nouveau club
         </Link>
+        </div>
       </div>
 
       {/* Global stats */}

@@ -94,8 +94,11 @@ function LoginForm() {
         </form>
       </div>
 
-      <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: 'rgba(29,29,31,0.35)' }}>
-        Plateforme FanPass — vos données restent privées
+      <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'rgba(29,29,31,0.45)' }}>
+        Pas encore de compte ?{' '}
+        <a href="/auth/signup" style={{ color: '#1d1d1f', fontWeight: 600, textDecoration: 'underline' }}>
+          S&apos;inscrire
+        </a>
       </p>
     </div>
   )
