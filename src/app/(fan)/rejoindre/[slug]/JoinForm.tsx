@@ -5,7 +5,7 @@ import { Loader2, Mail, Lock, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Props {
-  club: { id: string; name: string; primary_color: string; secondary_color: string; logo_url: string | null }
+  club: { id: string; name: string; slug: string; primary_color: string; secondary_color: string; logo_url: string | null }
 }
 
 export function JoinForm({ club }: Props) {
@@ -13,6 +13,7 @@ export function JoinForm({ club }: Props) {
   const [mode, setMode] = useState<'signup' | 'login'>('signup')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [emailSent, setEmailSent] = useState(false)
   const [form, setForm] = useState({ email: '', password: '', full_name: '' })
 
   const primaryColor = club.primary_color || '#10b981'
@@ -29,12 +30,26 @@ export function JoinForm({ club }: Props) {
     const supabase = createClient()
 
     if (mode === 'signup') {
-      const { error: signupError } = await supabase.auth.signUp({
+      // Redirect back to THIS join page after email verification
+      // so the server can associate the fan with the correct club
+      const redirectTo = `${window.location.origin}/rejoindre/${club.slug}`
+      const { data, error: signupError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
-        options: { data: { full_name: form.full_name } },
+        options: {
+          data: { full_name: form.full_name },
+          emailRedirectTo: redirectTo,
+        },
       })
       if (signupError) { setError(signupError.message); setLoading(false); return }
+
+      // No session = email confirmation required → show "check your email"
+      if (!data.session) {
+        setEmailSent(true)
+        setLoading(false)
+        return
+      }
+      // Session exists immediately (email confirmation disabled) → join directly
     } else {
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email: form.email,
@@ -43,7 +58,7 @@ export function JoinForm({ club }: Props) {
       if (loginError) { setError('Email ou mot de passe incorrect'); setLoading(false); return }
     }
 
-    // Associate with club
+    // Associate with club (works when session is active = login or immediate signup)
     const res = await fetch('/api/fan/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -51,7 +66,7 @@ export function JoinForm({ club }: Props) {
     })
     if (!res.ok) {
       const data = await res.json()
-      setError(data.error ?? 'Erreur lors de l\'association au club')
+      setError(data.error ?? "Erreur lors de l'association au club")
       setLoading(false)
       return
     }
@@ -71,29 +86,56 @@ export function JoinForm({ club }: Props) {
     boxSizing: 'border-box' as const,
   }
 
+  // Club header — shared between all states
+  const ClubHeader = () => (
+    <div style={{ background: primaryColor, borderRadius: 20, padding: '28px 24px', marginBottom: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      {club.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={club.logo_url} alt={club.name} style={{ width: 72, height: 72, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.20))' }} />
+      ) : (
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,255,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 900, color: club.secondary_color || '#ffffff' }}>
+          {club.name[0]}
+        </div>
+      )}
+      <div style={{ textAlign: 'center' }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: `${club.secondary_color || '#ffffff'}99`, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          Rejoindre
+        </p>
+        <h1 style={{ margin: '2px 0 0', fontSize: 22, fontWeight: 900, color: club.secondary_color || '#ffffff' }}>
+          {club.name}
+        </h1>
+      </div>
+    </div>
+  )
+
+  if (emailSent) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f5f5f7', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+          <ClubHeader />
+          <div style={{ background: '#ffffff', borderRadius: 20, border: '1px solid rgba(0,0,0,0.08)', padding: '28px 24px', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize: 44, marginBottom: 16 }}>📬</div>
+            <h2 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800, color: '#1d1d1f' }}>Vérifie ton email</h2>
+            <p style={{ margin: '0 0 6px', fontSize: 14, color: 'rgba(29,29,31,0.55)', lineHeight: 1.6 }}>
+              Un lien de confirmation a été envoyé à
+            </p>
+            <p style={{ margin: '0 0 20px', fontSize: 14, fontWeight: 700, color: '#1d1d1f' }}>{form.email}</p>
+            <p style={{ margin: 0, fontSize: 13, color: 'rgba(29,29,31,0.45)', lineHeight: 1.5 }}>
+              Clique sur le lien dans l&apos;email pour activer ton compte et rejoindre <strong>{club.name}</strong> automatiquement.
+            </p>
+          </div>
+          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: 'rgba(29,29,31,0.35)' }}>
+            Plateforme FanPass — vos données restent privées
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f7', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
-
-        {/* Club card */}
-        <div style={{ background: primaryColor, borderRadius: 20, padding: '28px 24px', marginBottom: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          {club.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={club.logo_url} alt={club.name} style={{ width: 72, height: 72, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.20))' }} />
-          ) : (
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,255,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 900, color: club.secondary_color || '#ffffff' }}>
-              {club.name[0]}
-            </div>
-          )}
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: `${club.secondary_color || '#ffffff'}99`, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Rejoindre
-            </p>
-            <h1 style={{ margin: '2px 0 0', fontSize: 22, fontWeight: 900, color: club.secondary_color || '#ffffff' }}>
-              {club.name}
-            </h1>
-          </div>
-        </div>
+        <ClubHeader />
 
         {/* Auth form */}
         <div style={{ background: '#ffffff', borderRadius: 20, border: '1px solid rgba(0,0,0,0.08)', padding: '24px 20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
@@ -148,7 +190,7 @@ export function JoinForm({ club }: Props) {
               }}
             >
               {loading
-                ? <Loader2 size={18} className="animate-spin" />
+                ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
                 : mode === 'signup' ? `Rejoindre ${club.name}` : 'Se connecter'
               }
             </button>
