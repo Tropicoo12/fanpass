@@ -10,6 +10,9 @@ import type { Database } from '@/types/database'
 import { getLoyaltyLevel, getLoyaltyProgress, LOYALTY_CONFIG } from '@/types/database'
 import { getDefaultClub } from '@/lib/club'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
 }
@@ -62,11 +65,13 @@ export default async function HomePage() {
   const totalPoints = pointsData?.total_points ?? 0
   const seasonPoints = pointsData?.season_points ?? 0
   const lifetimePoints = pointsData?.lifetime_points ?? 0
-  const loyaltyLevel = getLoyaltyLevel(lifetimePoints)
+  // Use totalPoints for loyalty level — lifetime_points may lag behind if RPC doesn't update it
+  const loyaltyPoints = Math.max(totalPoints, lifetimePoints)
+  const loyaltyLevel = getLoyaltyLevel(loyaltyPoints)
   const levelConfig = LOYALTY_CONFIG[loyaltyLevel]
-  const progress = getLoyaltyProgress(lifetimePoints)
+  const progress = getLoyaltyProgress(loyaltyPoints)
   const ptsToNext = loyaltyLevel < 4
-    ? LOYALTY_CONFIG[Math.min(loyaltyLevel + 1, 4) as keyof typeof LOYALTY_CONFIG].min - lifetimePoints
+    ? LOYALTY_CONFIG[Math.min(loyaltyLevel + 1, 4) as keyof typeof LOYALTY_CONFIG].min - loyaltyPoints
     : 0
 
   const checkedInMatchIds = new Set(myCheckins?.map(c => c.match_id) ?? [])
@@ -241,7 +246,7 @@ export default async function HomePage() {
                 </div>
                 <p style={{ fontSize: 10, color: 'rgba(29,29,31,0.40)', marginTop: 4, marginBottom: 0 }}>
                   {ptsToNext > 0
-                    ? `${(lifetimePoints - levelConfig.min).toLocaleString('fr-BE')} / ${(levelConfig.max - levelConfig.min + 1).toLocaleString('fr-BE')} pts · encore ${ptsToNext.toLocaleString('fr-BE')} pts`
+                    ? `${(loyaltyPoints - levelConfig.min).toLocaleString('fr-BE')} / ${(levelConfig.max - levelConfig.min + 1).toLocaleString('fr-BE')} pts · encore ${ptsToNext.toLocaleString('fr-BE')} pts`
                     : 'Niveau maximum atteint 🏆'}
                 </p>
               </div>
