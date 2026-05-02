@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { ScanQrCode, Trophy, Gift, ChevronRight, Bell } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { StadiumGatedSection } from '@/components/StadiumGatedSection'
+import { LiveMatchSync } from '@/components/LiveMatchSync'
 import type { Database } from '@/types/database'
 import { getLoyaltyLevel, getLoyaltyProgress, LOYALTY_CONFIG } from '@/types/database'
 import { getDefaultClub } from '@/lib/club'
@@ -89,6 +90,11 @@ export default async function HomePage() {
         color: '#1d1d1f',
       }}
     >
+      {/* Auto-sync live score every 60s — no cron needed */}
+      {nextMatch?.status === 'live' && (nextMatch as any).external_id && (
+        <LiveMatchSync matchId={nextMatch.id} />
+      )}
+
       {/* HEADER */}
       <div
         style={{
