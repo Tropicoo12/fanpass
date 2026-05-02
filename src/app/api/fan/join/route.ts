@@ -23,8 +23,11 @@ export async function POST(request: NextRequest) {
   const { data: club } = await admin.from('clubs').select('id').eq('id', club_id).single()
   if (!club) return NextResponse.json({ error: 'Club introuvable' }, { status: 404 })
 
-  // Associate fan with club
-  await admin.from('profiles').update({ club_id }).eq('id', user.id)
+  // Associate fan with club and ensure role is set
+  await admin.from('profiles').upsert(
+    { id: user.id, club_id, role: 'fan' },
+    { onConflict: 'id' }
+  )
 
   // Ensure fan_points row exists for this club
   await admin.from('fan_points').upsert(

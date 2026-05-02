@@ -26,7 +26,7 @@ export default async function FansPage() {
     .from('profiles')
     .select('id, full_name, username')
     .eq('club_id', CLUB_ID)
-    .eq('role', 'fan')
+    .not('role', 'in', '("club_admin","super_admin")')
 
   const fanIds = profileFans?.map(f => f.id) ?? []
 
