@@ -2,10 +2,31 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { Database } from '@/types/database'
-import { getLoyaltyLevel, LOYALTY_CONFIG } from '@/types/database'
+import { getLoyaltyLevel, getLoyaltyProgress, LOYALTY_CONFIG } from '@/types/database'
 import { Card } from '@/components/ui/Card'
 import { Trophy } from 'lucide-react'
 import { getDefaultClubId } from '@/lib/club'
+
+function formatRelativeDate(iso: string) {
+  const d = new Date(iso)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days === 0) return "Aujourd'hui"
+  if (days === 1) return 'Hier'
+  if (days < 7) return `Il y a ${days} jours`
+  return new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short' }).format(d)
+}
+
+const TX_TYPE_CONFIG: Record<string, { emoji: string; label: string; color: string }> = {
+  checkin:    { emoji: '✅', label: 'Check-in stade',    color: '#16a34a' },
+  pronostic:  { emoji: '⚽', label: 'Pronostic',         color: '#0369a1' },
+  survey:     { emoji: '📋', label: 'Sondage',           color: '#7c3aed' },
+  activation: { emoji: '🎯', label: 'Activation',        color: '#be185d' },
+  bonus:      { emoji: '🎁', label: 'Bonus',             color: '#d97706' },
+  redemption: { emoji: '🏷️', label: 'Récompense utilisée', color: '#dc2626' },
+  manual:     { emoji: '⭐', label: 'Points manuels',    color: '#6b7280' },
+}
 
 const MEDAL = ['🥇', '🥈', '🥉']
 
@@ -32,15 +53,21 @@ export default async function LeaderboardPage() {
 
   const CLUB_ID = (await getDefaultClubId()) ?? ''
 
-  const [{ data: top }, { data: myEntry }] = await Promise.all([
+  const [{ data: top }, { data: myEntry }, { data: transactions }] = await Promise.all([
     supabase.from('leaderboard').select('*').eq('club_id', CLUB_ID).order('rank').limit(50),
     supabase.from('leaderboard').select('*').eq('club_id', CLUB_ID).eq('user_id', user.id).maybeSingle(),
+    supabase.from('points_transactions').select('id, created_at, amount, type, description').eq('user_id', user.id).eq('club_id', CLUB_ID).order('created_at', { ascending: false }).limit(30),
   ])
 
   const myRank = myEntry?.rank ?? null
   const myPoints = myEntry?.total_points ?? 0
   const mySeasonPoints = myEntry?.season_points ?? 0
   const myLoyalty = getLoyaltyLevel(myEntry?.total_points ?? 0)
+  const myProgress = getLoyaltyProgress(myPoints)
+  const myLevelConfig = LOYALTY_CONFIG[myLoyalty]
+  const myPtsToNext = myLoyalty < 4
+    ? LOYALTY_CONFIG[(myLoyalty + 1) as keyof typeof LOYALTY_CONFIG].min - myPoints
+    : 0
 
   // Find adjacent entries around current user
   const isInTop = top?.some(e => e.user_id === user.id) ?? false
@@ -77,6 +104,82 @@ export default async function LeaderboardPage() {
             </div>
           </div>
         </Card>
+      )}
+
+      {/* Loyalty progress */}
+      <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Ton niveau</p>
+            <p className="text-lg font-black" style={{ color: myLevelConfig.color }}>{myLevelConfig.name}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-400 mb-0.5">Points vie</p>
+            <p className="text-lg font-black text-white">{myPoints.toLocaleString('fr-BE')}</p>
+          </div>
+        </div>
+        {/* Colored progress bar */}
+        <div className="flex items-center justify-between text-[10px] mb-1.5">
+          <span className="font-bold" style={{ color: myLevelConfig.color }}>{myLevelConfig.name}</span>
+          {myLoyalty < 4 ? (
+            <span className="text-gray-400 font-semibold">{LOYALTY_CONFIG[(myLoyalty + 1) as keyof typeof LOYALTY_CONFIG].name} →</span>
+          ) : (
+            <span style={{ color: myLevelConfig.color }} className="font-semibold">MAX ✦</span>
+          )}
+        </div>
+        <div className="h-3 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${myProgress}%`,
+              background: `linear-gradient(90deg, ${myLevelConfig.color}80, ${myLevelConfig.color})`,
+              boxShadow: `0 0 8px ${myLevelConfig.color}60`,
+            }}
+          />
+        </div>
+        <p className="text-[10px] text-gray-500 mt-1.5">
+          {myPtsToNext > 0
+            ? `${(myPoints - myLevelConfig.min).toLocaleString('fr-BE')} / ${(myLevelConfig.max - myLevelConfig.min + 1).toLocaleString('fr-BE')} pts · encore ${myPtsToNext.toLocaleString('fr-BE')} pts pour le niveau suivant`
+            : 'Niveau maximum atteint 🏆'}
+        </p>
+      </div>
+
+      {/* Points transaction history */}
+      {transactions && transactions.length > 0 && (
+        <div>
+          <h2 className="text-base font-bold mb-3">Historique des points</h2>
+          <div className="space-y-1">
+            {transactions.map((tx) => {
+              const cfg = TX_TYPE_CONFIG[tx.type] ?? { emoji: '⭐', label: tx.type, color: '#6b7280' }
+              const isPositive = tx.amount > 0
+              return (
+                <div key={tx.id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/3 hover:bg-white/5 transition-colors">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
+                    style={{ background: cfg.color + '20' }}
+                  >
+                    {cfg.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{tx.description || cfg.label}</p>
+                    <p className="text-[10px] text-gray-500">{formatRelativeDate(tx.created_at)}</p>
+                  </div>
+                  <p className={`text-sm font-black shrink-0 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isPositive ? '+' : ''}{tx.amount.toLocaleString('fr-BE')} pts
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {transactions && transactions.length === 0 && (
+        <div className="text-center py-6 bg-white/3 rounded-2xl">
+          <p className="text-4xl mb-2">📭</p>
+          <p className="text-sm text-gray-400 font-medium">Aucun point gagné pour l&apos;instant</p>
+          <p className="text-xs text-gray-600 mt-1">Scanne un QR code ou réponds à une activation !</p>
+        </div>
       )}
 
       {/* Podium (top 3) */}

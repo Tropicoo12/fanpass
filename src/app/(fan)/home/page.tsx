@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ScanQrCode, Trophy, Gift, ChevronRight, Bell } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
-import { ProgressBar } from '@/components/ui/ProgressBar'
 import { StadiumGatedSection } from '@/components/StadiumGatedSection'
 import type { Database } from '@/types/database'
 import { getLoyaltyLevel, getLoyaltyProgress, LOYALTY_CONFIG } from '@/types/database'
@@ -56,7 +55,7 @@ export default async function HomePage() {
     supabase.from('checkins').select('match_id').eq('user_id', user.id),
     supabase.from('leaderboard').select('*').eq('club_id', CLUB_ID).order('season_points', { ascending: false }).limit(5),
     supabase.from('redemptions').select('*, rewards(title, category)').eq('user_id', user.id).in('status', ['pending', 'confirmed']).order('created_at', { ascending: false }).limit(5),
-    supabase.from('activations').select('id, title, description, type, options, points_reward, response_count').eq('club_id', CLUB_ID).eq('status', 'active').order('created_at', { ascending: false }).limit(5),
+    supabase.from('activations').select('id, title, description, type, points_reward, response_count').eq('club_id', CLUB_ID).eq('status', 'active').order('created_at', { ascending: false }).limit(5),
   ])
 
   const totalPoints = pointsData?.total_points ?? 0
@@ -212,12 +211,34 @@ export default async function HomePage() {
               <div style={{ marginBottom: 10 }}>
                 <Badge variant={getLevelBadgeVariant(loyaltyLevel)}>{levelConfig.name}</Badge>
               </div>
-              <ProgressBar value={progress} color={primaryColor} height={6} />
-              {ptsToNext > 0 && (
-                <p style={{ fontSize: 11, color: 'rgba(29,29,31,0.45)', marginTop: 5, marginBottom: 0 }}>
-                  {ptsToNext.toLocaleString('fr-BE')} pts pour le niveau suivant
+              {/* Level progress bar */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: levelConfig.color }}>{levelConfig.name}</span>
+                  {loyaltyLevel < 4 ? (
+                    <span style={{ fontSize: 10, color: 'rgba(29,29,31,0.40)', fontWeight: 600 }}>
+                      {LOYALTY_CONFIG[(loyaltyLevel + 1) as keyof typeof LOYALTY_CONFIG].name} →
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 10, color: levelConfig.color, fontWeight: 600 }}>Max ✦</span>
+                  )}
+                </div>
+                <div style={{ height: 10, borderRadius: 100, background: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${progress}%`,
+                    borderRadius: 100,
+                    background: `linear-gradient(90deg, ${levelConfig.color}99, ${levelConfig.color})`,
+                    transition: 'width 0.8s ease',
+                    boxShadow: `0 0 6px ${levelConfig.color}55`,
+                  }} />
+                </div>
+                <p style={{ fontSize: 10, color: 'rgba(29,29,31,0.40)', marginTop: 4, marginBottom: 0 }}>
+                  {ptsToNext > 0
+                    ? `${(lifetimePoints - levelConfig.min).toLocaleString('fr-BE')} / ${(levelConfig.max - levelConfig.min + 1).toLocaleString('fr-BE')} pts · encore ${ptsToNext.toLocaleString('fr-BE')} pts`
+                    : 'Niveau maximum atteint 🏆'}
                 </p>
-              )}
+              </div>
               <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
                 <div>
                   <p style={{ fontSize: 10, color: 'rgba(29,29,31,0.45)', margin: 0 }}>Ce mois</p>
@@ -431,60 +452,6 @@ export default async function HomePage() {
           </div>
         )}
 
-        {/* ACTIVE ACTIVATIONS */}
-        {activeActivations && activeActivations.length > 0 && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1d1d1f', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ display: 'inline-flex', width: 8, height: 8, borderRadius: '50%', background: '#34c759', animation: 'pulse 1.5s infinite' }} />
-                Activations en cours
-              </h2>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {activeActivations.map(act => {
-                const typeEmoji = act.type === 'trivia' ? '🧠' : act.type === 'poll' ? '📊' : act.type === 'moment' ? '📸' : '⚽'
-                return (
-                  <Link
-                    key={act.id}
-                    href={`/activations/${act.id}`}
-                    style={{
-                      display: 'block',
-                      background: '#ffffff',
-                      borderRadius: 16,
-                      border: `2px solid ${primaryColor}25`,
-                      padding: '14px 16px',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{
-                        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                        background: primaryColor + '12',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 22,
-                      }}>
-                        {typeEmoji}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: '#1d1d1f', margin: 0 }}>{act.title}</p>
-                        {act.description && (
-                          <p style={{ fontSize: 12, color: 'rgba(29,29,31,0.50)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {act.description}
-                          </p>
-                        )}
-                        <p style={{ fontSize: 11, fontWeight: 700, color: primaryColor, margin: '4px 0 0' }}>
-                          +{act.points_reward} pts · {act.response_count} réponse{act.response_count !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                      <ChevronRight size={16} color="rgba(29,29,31,0.25)" />
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
         {/* PARIS EN DIRECT — stadium gated (client component) */}
         <StadiumGatedSection
           matchId={nextMatch?.status === 'live' ? nextMatch.id : null}
@@ -492,6 +459,87 @@ export default async function HomePage() {
           userPoints={totalPoints}
           primaryColor={primaryColor}
         />
+
+        {/* ACTIVATIONS EN COURS */}
+        {activeActivations && activeActivations.length > 0 && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1d1d1f' }}>Activations en cours</h2>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: '#dc2626',
+                background: '#fee2e2', borderRadius: 100, padding: '3px 9px',
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#dc2626', display: 'inline-block' }} />
+                LIVE
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {activeActivations.map(act => {
+                const typeConfig: Record<string, { emoji: string; bg: string; accent: string; label: string }> = {
+                  trivia:     { emoji: '🧠', bg: '#f3e8ff', accent: '#7c3aed', label: 'Quiz' },
+                  poll:       { emoji: '📊', bg: '#e0f2fe', accent: '#0369a1', label: 'Sondage' },
+                  moment:     { emoji: '📸', bg: '#fce7f3', accent: '#be185d', label: 'Moment' },
+                  prediction: { emoji: '⚽', bg: '#dcfce7', accent: '#15803d', label: 'Prédiction' },
+                }
+                const cfg = typeConfig[act.type] ?? { emoji: '🎯', bg: '#f0f9ff', accent: '#0284c7', label: 'Activation' }
+                return (
+                  <Link key={act.id} href={`/activations/${act.id}`} style={{ textDecoration: 'none' }}>
+                    <div style={{
+                      background: '#ffffff',
+                      borderRadius: 16,
+                      border: '1px solid rgba(0,0,0,0.07)',
+                      overflow: 'hidden',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                    }}>
+                      {/* Colored accent stripe */}
+                      <div style={{ height: 4, background: cfg.accent }} />
+                      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                        {/* Icon bubble */}
+                        <div style={{
+                          width: 52, height: 52, borderRadius: 16,
+                          background: cfg.bg,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 26, flexShrink: 0,
+                        }}>
+                          {cfg.emoji}
+                        </div>
+                        {/* Text */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, color: cfg.accent,
+                              background: cfg.bg, padding: '2px 8px', borderRadius: 100,
+                            }}>{cfg.label}</span>
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, color: '#15803d',
+                              background: '#dcfce7', padding: '2px 8px', borderRadius: 100,
+                            }}>+{act.points_reward} pts</span>
+                          </div>
+                          <p style={{
+                            fontSize: 14, fontWeight: 700, color: '#1d1d1f', margin: 0,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>
+                            {act.title}
+                          </p>
+                          {act.description && (
+                            <p style={{
+                              fontSize: 12, color: 'rgba(29,29,31,0.50)', margin: '2px 0 0',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
+                              {act.description}
+                            </p>
+                          )}
+                        </div>
+                        <ChevronRight size={16} style={{ color: 'rgba(29,29,31,0.25)', flexShrink: 0 }} />
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* QUICK ACTIONS */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>

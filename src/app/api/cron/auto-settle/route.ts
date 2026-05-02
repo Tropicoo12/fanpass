@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import type { Database, MarketOption } from '@/types/database'
+type MatchUpdate = Database['public']['Tables']['matches']['Update']
 
 function adminClient() {
   return createAdminClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+}
+
+// Map Football-Data API statuses to our match status
+function toMatchStatus(apiStatus: string): 'live' | 'finished' | null {
+  if (['FINISHED', 'AWARDED'].includes(apiStatus)) return 'finished'
+  if (['IN_PLAY', 'PAUSED', 'HALFTIME'].includes(apiStatus)) return 'live'
+  return null
 }
 
 export async function GET(req: NextRequest) {
@@ -17,7 +25,65 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = adminClient()
-  const results = { closedMarkets: 0, settledMarkets: 0, settledPronostics: 0 }
+  const results = { syncedScores: 0, autoFinished: 0, closedMarkets: 0, settledMarkets: 0, settledPronostics: 0 }
+
+  // 0. Auto-sync scores for live matches linked to Football-Data API
+  const apiKey = process.env.FOOTBALL_DATA_API_KEY
+  if (apiKey) {
+    const { data: liveMatches } = await admin
+      .from('matches')
+      .select('id, club_id, external_id, prediction_points_exact, prediction_points_winner')
+      .eq('status', 'live')
+      .not('external_id', 'is', null)
+
+    for (const match of liveMatches ?? []) {
+      try {
+        const res = await fetch(`https://api.football-data.org/v4/matches/${match.external_id}`, {
+          headers: { 'X-Auth-Token': apiKey },
+          next: { revalidate: 0 },
+        })
+        if (!res.ok) continue
+
+        const data = await res.json()
+        const apiStatus: string = data.status ?? ''
+        const fullTime = data.score?.fullTime
+        const regularTime = data.score?.regularTime
+        const homeScore: number | null = fullTime?.home ?? regularTime?.home ?? null
+        const awayScore: number | null = fullTime?.away ?? regularTime?.away ?? null
+        const newStatus = toMatchStatus(apiStatus)
+
+        const update: MatchUpdate = {}
+        if (homeScore !== null) update.home_score = homeScore
+        if (awayScore !== null) update.away_score = awayScore
+        if (newStatus === 'finished') update.status = 'finished'
+
+        if (Object.keys(update).length > 0) {
+          await admin.from('matches').update(update).eq('id', match.id)
+          results.syncedScores++
+        }
+
+        if (newStatus === 'finished') {
+          // Close all open/active markets for this match
+          await admin
+            .from('match_markets')
+            .update({ is_published: false } as any)
+            .eq('match_id', match.id)
+            .eq('is_settled', false)
+
+          // Close all active activations for this match
+          await admin
+            .from('activations')
+            .update({ status: 'closed' })
+            .eq('match_id', match.id)
+            .eq('status', 'active')
+
+          results.autoFinished++
+        }
+      } catch {
+        // Ignore individual match API errors — try next match
+      }
+    }
+  }
 
   // 1. Close markets whose closes_at has passed
   const { data: expiredMarkets } = await admin
