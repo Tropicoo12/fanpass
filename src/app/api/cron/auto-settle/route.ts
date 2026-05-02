@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import type { Database, MarketOption, Match } from '@/types/database'
+import type { Database, MarketOption } from '@/types/database'
 type MatchUpdate = Database['public']['Tables']['matches']['Update']
 
 function adminClient() {
