@@ -60,6 +60,8 @@ export default async function FansPage() {
         total_points: pts.total,
         season_points: pts.season,
         lifetime_points: pts.lifetime,
+        avatar_url: null,
+        loyalty_level: getLoyaltyLevel(pts.lifetime),
         rank: i + 1,
       }
     })
