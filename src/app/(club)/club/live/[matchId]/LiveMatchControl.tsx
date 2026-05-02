@@ -38,6 +38,7 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [matchStatus, setMatchStatus] = useState(match.status)
   const [updatingMatch, setUpdatingMatch] = useState(false)
+  const [syncingScore, setSyncingScore] = useState(false)
   const [homeScore, setHomeScore] = useState(match.home_score ?? 0)
   const [awayScore, setAwayScore] = useState(match.away_score ?? 0)
 
@@ -133,6 +134,20 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
     }
   }
 
+  async function syncScoreFromApi() {
+    setSyncingScore(true)
+    try {
+      const res = await fetch(`/api/club/matches/${match.id}/sync-score`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) { toast(data.error ?? 'Erreur sync', 'error'); return }
+      setHomeScore(data.home_score)
+      setAwayScore(data.away_score)
+      toast(`Score synchronisé : ${data.home_score} – ${data.away_score}`, 'success')
+      router.refresh()
+    } catch { toast('Erreur réseau', 'error') }
+    finally { setSyncingScore(false) }
+  }
+
   if (compact) {
     const scoreDirty = homeScore !== (match.home_score ?? 0) || awayScore !== (match.away_score ?? 0)
 
@@ -185,6 +200,17 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
               >
                 {updatingMatch ? <Loader2 className="w-4 h-4 animate-spin" /> : scoreDirty ? '💾 Sauvegarder' : '✓ Sauvegardé'}
               </Button>
+              {(match as any).external_id && (
+                <button
+                  type="button"
+                  onClick={syncScoreFromApi}
+                  disabled={syncingScore}
+                  title="Synchroniser le score depuis l'API"
+                  className="shrink-0 px-3 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 text-sm font-semibold hover:bg-blue-100 transition-colors disabled:opacity-50"
+                >
+                  {syncingScore ? '⏳' : '🔄 Sync'}
+                </button>
+              )}
             </div>
           )}
           {matchStatus === 'finished' && (

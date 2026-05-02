@@ -46,6 +46,7 @@ export default async function HomePage() {
     { data: myCheckins },
     { data: topFans },
     { data: myRedemptions },
+    { data: activeActivations },
   ] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', user.id).single(),
     supabase.from('fan_points').select('total_points, season_points, lifetime_points').eq('user_id', user.id).eq('club_id', CLUB_ID).maybeSingle(),
@@ -55,6 +56,7 @@ export default async function HomePage() {
     supabase.from('checkins').select('match_id').eq('user_id', user.id),
     supabase.from('leaderboard').select('*').eq('club_id', CLUB_ID).order('season_points', { ascending: false }).limit(5),
     supabase.from('redemptions').select('*, rewards(title, category)').eq('user_id', user.id).in('status', ['pending', 'confirmed']).order('created_at', { ascending: false }).limit(5),
+    supabase.from('activations').select('id, title, description, type, options, points_reward, response_count').eq('club_id', CLUB_ID).eq('status', 'active').order('created_at', { ascending: false }).limit(5),
   ])
 
   const totalPoints = pointsData?.total_points ?? 0
@@ -425,6 +427,60 @@ export default async function HomePage() {
                   Pronostic
                 </Link>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ACTIVE ACTIVATIONS */}
+        {activeActivations && activeActivations.length > 0 && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#1d1d1f', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ display: 'inline-flex', width: 8, height: 8, borderRadius: '50%', background: '#34c759', animation: 'pulse 1.5s infinite' }} />
+                Activations en cours
+              </h2>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {activeActivations.map(act => {
+                const typeEmoji = act.type === 'trivia' ? '🧠' : act.type === 'poll' ? '📊' : act.type === 'moment' ? '📸' : '⚽'
+                return (
+                  <Link
+                    key={act.id}
+                    href={`/activations/${act.id}`}
+                    style={{
+                      display: 'block',
+                      background: '#ffffff',
+                      borderRadius: 16,
+                      border: `2px solid ${primaryColor}25`,
+                      padding: '14px 16px',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                        background: primaryColor + '12',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 22,
+                      }}>
+                        {typeEmoji}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#1d1d1f', margin: 0 }}>{act.title}</p>
+                        {act.description && (
+                          <p style={{ fontSize: 12, color: 'rgba(29,29,31,0.50)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {act.description}
+                          </p>
+                        )}
+                        <p style={{ fontSize: 11, fontWeight: 700, color: primaryColor, margin: '4px 0 0' }}>
+                          +{act.points_reward} pts · {act.response_count} réponse{act.response_count !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <ChevronRight size={16} color="rgba(29,29,31,0.25)" />
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           </div>
         )}
