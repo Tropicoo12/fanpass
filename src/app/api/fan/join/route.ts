@@ -23,7 +23,13 @@ export async function POST(request: NextRequest) {
   const { data: club } = await admin.from('clubs').select('id').eq('id', club_id).single()
   if (!club) return NextResponse.json({ error: 'Club introuvable' }, { status: 404 })
 
-  // Associate fan with club and ensure role is set
+  // Check current role — never overwrite admins
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role === 'club_admin' || profile?.role === 'super_admin') {
+    return NextResponse.json({ error: 'Action non autorisée pour un admin' }, { status: 403 })
+  }
+
+  // Associate fan with club (preserve existing role if already fan, otherwise set fan)
   await admin.from('profiles').upsert(
     { id: user.id, club_id, role: 'fan' },
     { onConflict: 'id' }
