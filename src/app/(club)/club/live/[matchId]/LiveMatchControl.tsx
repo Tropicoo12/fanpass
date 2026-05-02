@@ -134,10 +134,20 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
   }
 
   if (compact) {
+    const scoreDirty = homeScore !== (match.home_score ?? 0) || awayScore !== (match.away_score ?? 0)
+
     return (
       <Card variant="dark">
-        <h2 className="font-bold mb-4">Contrôle du match</h2>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold">Contrôle du match</h2>
+          {matchStatus === 'live' && (
+            <Button variant="danger" size="sm" onClick={() => updateMatchStatus('finished')} disabled={updatingMatch}>
+              {updatingMatch ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5 mr-1.5" />}
+              Terminer
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-col gap-3">
           {matchStatus === 'upcoming' && (
             <Button onClick={() => updateMatchStatus('live')} disabled={updatingMatch} variant="primary">
               {updatingMatch ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
@@ -145,24 +155,40 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
             </Button>
           )}
           {matchStatus === 'live' && (
-            <>
-              <div className="flex items-center gap-3 bg-gray-100 px-4 py-2 rounded-xl border border-gray-200">
-                <input type="number" min={0} max={20} value={homeScore} onChange={e => setHomeScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none text-gray-900" />
-                <span className="text-gray-500 font-black">–</span>
-                <input type="number" min={0} max={20} value={awayScore} onChange={e => setAwayScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none text-gray-900" />
+            <div className="flex items-center gap-3">
+              {/* Score stepper */}
+              <div className="flex items-center gap-2 bg-gray-100 rounded-xl border border-gray-200 px-3 py-2 flex-1">
+                {/* Home */}
+                <div className="flex items-center gap-1.5 flex-1 justify-center">
+                  <button type="button" onClick={() => setHomeScore(s => Math.max(0, s - 1))}
+                    className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold text-sm flex items-center justify-center">−</button>
+                  <span className="text-2xl font-black text-gray-900 w-8 text-center">{homeScore}</span>
+                  <button type="button" onClick={() => setHomeScore(s => s + 1)}
+                    className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold text-sm flex items-center justify-center">+</button>
+                </div>
+                <span className="text-gray-400 font-black text-xl">–</span>
+                {/* Away */}
+                <div className="flex items-center gap-1.5 flex-1 justify-center">
+                  <button type="button" onClick={() => setAwayScore(s => Math.max(0, s - 1))}
+                    className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold text-sm flex items-center justify-center">−</button>
+                  <span className="text-2xl font-black text-gray-900 w-8 text-center">{awayScore}</span>
+                  <button type="button" onClick={() => setAwayScore(s => s + 1)}
+                    className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold text-sm flex items-center justify-center">+</button>
+                </div>
               </div>
-              <Button variant="secondary" onClick={() => updateMatchStatus('live')} disabled={updatingMatch}>
-                Sauvegarder score
+              {/* Save button — highlighted when dirty */}
+              <Button
+                variant={scoreDirty ? 'primary' : 'secondary'}
+                onClick={() => updateMatchStatus('live')}
+                disabled={updatingMatch || !scoreDirty}
+                className="shrink-0"
+              >
+                {updatingMatch ? <Loader2 className="w-4 h-4 animate-spin" /> : scoreDirty ? '💾 Sauvegarder' : '✓ Sauvegardé'}
               </Button>
-              <Button variant="danger" onClick={() => updateMatchStatus('finished')} disabled={updatingMatch}>
-                <Square className="w-4 h-4 mr-2" /> Terminer
-              </Button>
-            </>
+            </div>
           )}
           {matchStatus === 'finished' && (
-            <div className="flex items-center gap-2 text-emerald-400">
+            <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2">
               <Check className="w-4 h-4" />
               <span className="text-sm font-semibold">Match terminé · Score final : {homeScore} – {awayScore}</span>
             </div>
