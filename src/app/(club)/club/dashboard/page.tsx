@@ -112,7 +112,12 @@ export default async function DashboardPage() {
     supabase.from('redemptions').select('*', { count: 'exact', head: true }).neq('status', 'cancelled'),
     supabase.from('fan_points').select('total_points').eq('club_id', CLUB_ID),
     supabase.from('matches').select('*').eq('club_id', CLUB_ID).in('status', ['upcoming', 'live']).order('match_date').limit(1).maybeSingle(),
-    supabase.from('leaderboard').select('*').eq('club_id', CLUB_ID).order('rank').limit(5),
+    supabase.from('fan_points')
+      .select('user_id, total_points, profiles!inner(full_name, username, role)')
+      .eq('club_id', CLUB_ID)
+      .not('profiles.role', 'in', '("club_admin","super_admin")')
+      .order('total_points', { ascending: false })
+      .limit(5),
     supabase.from('points_transactions').select('amount, type, description, created_at, profiles(full_name)').eq('club_id', CLUB_ID).order('created_at', { ascending: false }).limit(8),
     supabase.from('activations').select('*').eq('club_id', CLUB_ID).eq('status', 'active'),
   ])
@@ -430,6 +435,9 @@ export default async function DashboardPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {topFans?.length ? topFans.map((fan, i) => {
+              const profile = (fan as any).profiles
+              const fullName: string | null = profile?.full_name ?? null
+              const username: string | null = profile?.username ?? null
               const level = getLoyaltyLevel(fan.total_points ?? 0)
               const levelConf = LOYALTY_CONFIG[level]
               const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null
@@ -453,11 +461,11 @@ export default async function DashboardPage() {
                       flexShrink: 0,
                     }}
                   >
-                    {fan.full_name?.[0]?.toUpperCase() ?? '?'}
+                    {fullName?.[0]?.toUpperCase() ?? '?'}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: '#1d1d1f', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {fan.full_name ?? fan.username ?? 'Anonyme'}
+                      {fullName ?? username ?? 'Anonyme'}
                     </p>
                     <span
                       style={{
