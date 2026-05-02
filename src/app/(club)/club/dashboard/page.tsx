@@ -107,9 +107,9 @@ export default async function DashboardPage() {
     { data: recentTransactions },
     { data: activeActivations },
   ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'fan'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('club_id', CLUB_ID).not('role', 'in', '("club_admin","super_admin")'),
     supabase.from('checkins').select('*', { count: 'exact', head: true }),
-    supabase.from('redemptions').select('*', { count: 'exact', head: true }).neq('status', 'cancelled'),
+    supabase.from('redemptions').select('*', { count: 'exact', head: true }).eq('club_id', CLUB_ID).neq('status', 'cancelled'),
     supabase.from('fan_points').select('total_points').eq('club_id', CLUB_ID),
     supabase.from('matches').select('*').eq('club_id', CLUB_ID).in('status', ['upcoming', 'live']).order('match_date').limit(1).maybeSingle(),
     supabase.from('leaderboard').select('*').eq('club_id', CLUB_ID).order('rank').limit(5),
