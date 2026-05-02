@@ -49,13 +49,13 @@ function LiveMarketCard({ market, matchId, onClose }: {
   const isExpired = market.closes_at && new Date(market.closes_at) < new Date()
 
   return (
-    <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/15 space-y-2">
+    <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 space-y-2">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <p className="font-medium text-sm">{market.market_label}</p>
-          <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
             {market.closes_at && (
-              <span className={`flex items-center gap-1 font-mono ${isExpired ? 'text-red-400' : 'text-blue-300'}`}>
+              <span className={`flex items-center gap-1 font-mono ${isExpired ? 'text-red-400' : 'text-blue-600'}`}>
                 <Clock className="w-3 h-3" />
                 {countdown}
               </span>
@@ -71,7 +71,7 @@ function LiveMarketCard({ market, matchId, onClose }: {
       </div>
       <div className="flex flex-wrap gap-1.5">
         {options.map(o => (
-          <span key={o.key} className="text-xs px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-gray-300">
+          <span key={o.key} className="text-xs px-2 py-1 rounded-lg bg-gray-100 border border-gray-200 text-gray-700">
             {o.label} <span className="text-amber-400 font-bold">x{o.odds.toFixed(2)}</span>
           </span>
         ))}
@@ -212,14 +212,14 @@ export function TabLiveActivations({ match, liveMarkets: initialMarkets }: Props
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Durée</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Durée</label>
             <div className="flex gap-2">
               {DURATIONS.map(d => (
                 <button key={d.minutes} type="button" onClick={() => setDuration(d.minutes)}
                   className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all border ${
                     duration === d.minutes
-                      ? 'bg-blue-500/20 border-blue-500/60 text-blue-300'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
+                      ? 'bg-blue-50 border-blue-400 text-blue-600'
+                      : 'bg-gray-100 border-gray-200 hover:bg-gray-200 text-gray-700'
                   }`}
                 >
                   {d.label}
@@ -230,11 +230,11 @@ export function TabLiveActivations({ match, liveMarkets: initialMarkets }: Props
 
           {/* Quick options */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Suggestions rapides</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Suggestions rapides</label>
             <div className="flex flex-wrap gap-1.5">
               {QUICK_OPTIONS.map(q => (
                 <button key={q.label} type="button" onClick={() => applyQuickOption(q)}
-                  className="text-xs px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-gray-300"
+                  className="text-xs px-2.5 py-1.5 rounded-lg bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors text-gray-700"
                 >
                   {q.label}
                 </button>
@@ -245,7 +245,7 @@ export function TabLiveActivations({ match, liveMarkets: initialMarkets }: Props
           {/* Options with odds */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-300">
+              <label className="block text-sm font-medium text-gray-700">
                 Options avec cotes <span className="text-amber-400 flex items-center gap-1 inline-flex"><TrendingUp className="w-3 h-3" /></span>
               </label>
               <button type="button" onClick={addOption} className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
@@ -259,7 +259,7 @@ export function TabLiveActivations({ match, liveMarkets: initialMarkets }: Props
                     value={opt.label}
                     onChange={e => setOptionField(i, 'label', e.target.value)}
                     placeholder={`Option ${i + 1}`}
-                    className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-blue-500/50 placeholder:text-gray-600"
+                    className="flex-1 px-3 py-2 rounded-xl bg-white border border-gray-200 text-gray-900 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-400"
                   />
                   <input
                     type="number"
@@ -268,7 +268,7 @@ export function TabLiveActivations({ match, liveMarkets: initialMarkets }: Props
                     placeholder="Cote"
                     step="0.01"
                     min="1.01"
-                    className="w-20 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-amber-400 font-bold text-center focus:outline-none focus:border-amber-500/50 placeholder:text-gray-600"
+                    className="w-20 px-3 py-2 rounded-xl bg-white border border-gray-200 text-sm text-amber-600 font-bold text-center focus:outline-none focus:border-amber-500 placeholder:text-gray-400"
                   />
                   {options.length > 2 && (
                     <button type="button" onClick={() => removeOption(i)} className="p-2 rounded-lg hover:bg-red-500/10 text-gray-500 hover:text-red-400 transition-colors">

@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { Trophy } from 'lucide-react'
 import { getDefaultClubId } from '@/lib/club'
 import { MatchBettingCard } from './MatchBettingCard'
+import { LiveRefresher } from './LiveRefresher'
 
 export default async function PronosticsPage() {
   const cookieStore = await cookies()
@@ -161,6 +162,7 @@ export default async function PronosticsPage() {
           </div>
         )}
       </div>
+      {matches?.some(m => m.status === 'live') && <LiveRefresher />}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Zap, Plus, Play, Square, Check, Users, Loader2 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -40,6 +40,11 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
   const [updatingMatch, setUpdatingMatch] = useState(false)
   const [homeScore, setHomeScore] = useState(match.home_score ?? 0)
   const [awayScore, setAwayScore] = useState(match.away_score ?? 0)
+
+  useEffect(() => {
+    setHomeScore(match.home_score ?? 0)
+    setAwayScore(match.away_score ?? 0)
+  }, [match.home_score, match.away_score])
 
   const [form, setForm] = useState({
     title: '',
@@ -141,12 +146,12 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
           )}
           {matchStatus === 'live' && (
             <>
-              <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl">
+              <div className="flex items-center gap-3 bg-gray-100 px-4 py-2 rounded-xl border border-gray-200">
                 <input type="number" min={0} max={20} value={homeScore} onChange={e => setHomeScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none" />
+                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none text-gray-900" />
                 <span className="text-gray-500 font-black">–</span>
                 <input type="number" min={0} max={20} value={awayScore} onChange={e => setAwayScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none" />
+                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none text-gray-900" />
               </div>
               <Button variant="secondary" onClick={() => updateMatchStatus('live')} disabled={updatingMatch}>
                 Sauvegarder score
@@ -181,12 +186,12 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
           )}
           {matchStatus === 'live' && (
             <>
-              <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl">
+              <div className="flex items-center gap-3 bg-gray-100 px-4 py-2 rounded-xl border border-gray-200">
                 <input type="number" min={0} max={20} value={homeScore} onChange={e => setHomeScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none" />
+                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none text-gray-900" />
                 <span className="text-gray-500 font-black">–</span>
                 <input type="number" min={0} max={20} value={awayScore} onChange={e => setAwayScore(+e.target.value)}
-                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none" />
+                  className="w-10 text-center text-xl font-black bg-transparent focus:outline-none text-gray-900" />
               </div>
               <Button variant="secondary" onClick={() => updateMatchStatus('live')} disabled={updatingMatch}>
                 Sauvegarder score
@@ -265,11 +270,11 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
                 className={`p-3 rounded-xl border text-left transition-all ${
                   form.type === t.value
                     ? 'border-emerald-500 bg-emerald-500/15'
-                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                    : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
                 }`}
               >
                 <p className="text-sm font-semibold">{t.label}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{t.desc}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{t.desc}</p>
               </button>
             ))}
           </div>
@@ -279,14 +284,14 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
 
           {(form.type === 'poll' || form.type === 'trivia') && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Options de réponse</label>
+              <label className="block text-sm font-medium text-gray-700">Options de réponse</label>
               {form.options.map((opt, i) => (
                 <input
                   key={i}
                   value={opt}
                   onChange={e => setOption(i, e.target.value)}
                   placeholder={`Option ${i + 1}`}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-gray-600"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-gray-400"
                 />
               ))}
             </div>
@@ -297,9 +302,9 @@ export function LiveMatchControl({ match, activations: initialActivations, compa
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Points récompense</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Points récompense</label>
             <input type="number" min={0} value={form.points_reward} onChange={e => setField('points_reward', +e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-gray-400" />
           </div>
 
           <Button type="submit" disabled={loadingId === 'create'} className="w-full">
