@@ -3,10 +3,12 @@ import { cookies } from 'next/headers'
 import type { Database } from '@/types/database'
 import { getLoyaltyLevel, LOYALTY_CONFIG } from '@/types/database'
 import { Card } from '@/components/ui/Card'
-import { Download, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { getAdminClubId } from '@/lib/club'
 import { FansTable } from './FansTable'
+
+export const dynamic = 'force-dynamic'
 
 export default async function FansPage() {
   const cookieStore = await cookies()
@@ -17,16 +19,54 @@ export default async function FansPage() {
   )
 
   const CLUB_ID = await getAdminClubId()
-  if (!CLUB_ID) redirect('/auth/login')
+  if (!CLUB_ID) redirect('/admin')
 
-  const { data: fans } = await supabase
-    .from('leaderboard')
-    .select('*')
+  // Primary source: ALL fans associated with this club via their profile
+  const { data: profileFans } = await supabase
+    .from('profiles')
+    .select('id, full_name, username')
     .eq('club_id', CLUB_ID)
-    .order('rank')
-    .limit(500)
+    .eq('role', 'fan')
 
-  // Two-step checkins query
+  const fanIds = profileFans?.map(f => f.id) ?? []
+
+  // Get points for all these fans (may not exist for new fans)
+  const { data: pointsRows } = fanIds.length > 0
+    ? await supabase
+        .from('fan_points')
+        .select('user_id, total_points, season_points, lifetime_points')
+        .eq('club_id', CLUB_ID)
+        .in('user_id', fanIds)
+    : { data: [] }
+
+  const pointsMap: Record<string, { total: number; season: number; lifetime: number }> = {}
+  for (const row of pointsRows ?? []) {
+    pointsMap[row.user_id] = {
+      total: row.total_points ?? 0,
+      season: row.season_points ?? 0,
+      lifetime: row.lifetime_points ?? 0,
+    }
+  }
+
+  // Build fan list sorted by total points desc
+  const fans = (profileFans ?? [])
+    .map((f, i) => {
+      const pts = pointsMap[f.id] ?? { total: 0, season: 0, lifetime: 0 }
+      return {
+        user_id: f.id,
+        full_name: f.full_name,
+        username: f.username ?? null,
+        club_id: CLUB_ID,
+        total_points: pts.total,
+        season_points: pts.season,
+        lifetime_points: pts.lifetime,
+        rank: i + 1,
+      }
+    })
+    .sort((a, b) => b.total_points - a.total_points)
+    .map((f, i) => ({ ...f, rank: i + 1 }))
+
+  // Checkins
   const { data: clubMatches } = await supabase.from('matches').select('id').eq('club_id', CLUB_ID)
   const matchIds = clubMatches?.map(m => m.id) ?? []
 
@@ -34,7 +74,7 @@ export default async function FansPage() {
     ? await supabase.from('checkins').select('user_id, match_id').in('match_id', matchIds)
     : { data: [] }
 
-  // Last transaction per user (as proxy for last activity)
+  // Last activity
   const { data: lastTransactions } = await supabase
     .from('points_transactions')
     .select('user_id, created_at')
@@ -50,9 +90,9 @@ export default async function FansPage() {
     if (!lastActivityByUser[t.user_id]) lastActivityByUser[t.user_id] = t.created_at
   })
 
-  const total = fans?.length ?? 0
-  const avgPoints = total > 0 ? Math.round((fans?.reduce((a, f) => a + (f.total_points ?? 0), 0) ?? 0) / total) : 0
-  const goldPlus = fans?.filter(f => getLoyaltyLevel(f.total_points ?? 0) >= 2).length ?? 0
+  const total = fans.length
+  const avgPoints = total > 0 ? Math.round(fans.reduce((a, f) => a + f.total_points, 0) / total) : 0
+  const goldPlus = fans.filter(f => getLoyaltyLevel(f.lifetime_points) >= 2).length
 
   return (
     <div className="space-y-6">
@@ -61,9 +101,6 @@ export default async function FansPage() {
           <h1 className="text-2xl font-black" style={{ color: '#1d1d1f' }}>Fans / CRM</h1>
           <p className="text-sm mt-1" style={{ color: 'rgba(29,29,31,0.55)' }}>{total} supporter{total !== 1 ? 's' : ''} enregistré{total !== 1 ? 's' : ''}</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all" style={{ background: 'rgba(0,0,0,0.05)', color: '#1d1d1f' }}>
-          <Download className="w-4 h-4" /> Export CSV
-        </button>
       </div>
 
       {/* Quick stats */}
@@ -88,7 +125,7 @@ export default async function FansPage() {
         </Card>
       ) : (
         <FansTable
-          fans={fans ?? []}
+          fans={fans}
           checkinsByUser={checkinsByUser}
           lastActivityByUser={lastActivityByUser}
         />
