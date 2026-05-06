@@ -97,7 +97,32 @@ export function SponsorsManager({ sponsors, surveys, responsesBySurvey, clubId }
                   <p className="font-semibold text-sm" style={{ color: '#1d1d1f' }}>{s.name}</p>
                   {s.website_url && <p className="text-xs" style={{ color: 'rgba(29,29,31,0.45)' }}>{s.website_url}</p>}
                 </div>
-                <Badge variant={s.is_active ? 'success' : 'neutral'}>{s.is_active ? 'Actif' : 'Inactif'}</Badge>
+                <div className="flex items-center gap-2">
+                  {(s as any).report_token && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        const url = `${window.location.origin}/sponsor-report/${(s as any).report_token}`
+                        await navigator.clipboard.writeText(url)
+                        toast('Lien rapport copié !', 'success')
+                      }}
+                      style={{
+                        padding: '5px 10px',
+                        borderRadius: 8,
+                        background: 'rgba(99,102,241,0.10)',
+                        color: '#6366f1',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      📊 Rapport
+                    </button>
+                  )}
+                  <Badge variant={s.is_active ? 'success' : 'neutral'}>{s.is_active ? 'Actif' : 'Inactif'}</Badge>
+                </div>
               </div>
             </Card>
           ))}

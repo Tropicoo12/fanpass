@@ -224,7 +224,8 @@ create table if not exists sponsors (
   website_url text,
   primary_color text default '#ffffff',
   is_active boolean not null default true,
-  sort_order int not null default 0
+  sort_order int not null default 0,
+  report_token text unique default gen_random_uuid()::text
 );
 
 -- ============================================================

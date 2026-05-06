@@ -285,6 +285,7 @@ export type Database = {
           primary_color: string
           is_active: boolean
           sort_order: number
+          report_token: string | null
         }
         Insert: { club_id: string; name: string; logo_url?: string | null; website_url?: string | null; primary_color?: string; is_active?: boolean }
         Update: { name?: string; logo_url?: string | null; website_url?: string | null; primary_color?: string; is_active?: boolean }
