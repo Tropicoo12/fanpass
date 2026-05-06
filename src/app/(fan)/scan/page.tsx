@@ -27,7 +27,12 @@ export default function ScanPage() {
 
   useEffect(() => {
     setNativeScan('BarcodeDetector' in window)
-  }, [])
+    // Auto-start if permission previously granted
+    const savedPerm = localStorage.getItem('fp_camera_perm')
+    if (savedPerm === 'granted') {
+      startCamera()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopCamera = useCallback(() => {
     cancelAnimationFrame(rafRef.current)
@@ -88,6 +93,7 @@ export default function ScanPage() {
         video: { facingMode: 'environment', width: { ideal: 1280 } },
       })
       streamRef.current = stream
+      localStorage.setItem('fp_camera_perm', 'granted')
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
@@ -117,6 +123,7 @@ export default function ScanPage() {
         toast('Scanner non disponible. Entre le code manuellement.', 'info')
       }
     } catch {
+      localStorage.removeItem('fp_camera_perm') // permission was revoked
       setState('idle')
       setErrorMsg('Accès caméra refusé. Entre le token manuellement.')
     }

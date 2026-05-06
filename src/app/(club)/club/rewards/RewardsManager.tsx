@@ -31,6 +31,7 @@ const EMPTY_FORM = {
   min_loyalty_level: 0,
   max_per_user: '',
   expires_at: '',
+  image_url: '',
 }
 
 const inputCls = 'w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E1001A]'
@@ -59,6 +60,7 @@ export function RewardsManager({ rewards, redemptionsByReward, clubId }: Props) 
       min_loyalty_level: r.min_loyalty_level,
       max_per_user: r.max_per_user !== null ? String(r.max_per_user) : '',
       expires_at: r.expires_at ? r.expires_at.slice(0, 16) : '',
+      image_url: (r as any).image_url ?? '',
     })
     setEditReward(r)
     setOpen(true)
@@ -74,6 +76,7 @@ export function RewardsManager({ rewards, redemptionsByReward, clubId }: Props) 
         stock: form.stock !== '' ? +form.stock : null,
         max_per_user: form.max_per_user !== '' ? +form.max_per_user : null,
         expires_at: form.expires_at || null,
+        image_url: form.image_url || null,
       }
       const url = editReward ? `/api/club/rewards/${editReward.id}` : '/api/club/rewards'
       const method = editReward ? 'PATCH' : 'POST'
@@ -196,6 +199,21 @@ export function RewardsManager({ rewards, redemptionsByReward, clubId }: Props) 
           <div className="grid grid-cols-2 gap-3">
             <Input label="Max par fan (vide = ∞)" type="number" placeholder="1" value={form.max_per_user} onChange={e => setField('max_per_user', e.target.value)} />
             <Input label="Expire le (optionnel)" type="datetime-local" value={form.expires_at} onChange={e => setField('expires_at', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle}>URL image produit (optionnel)</label>
+            <input
+              type="url"
+              value={form.image_url}
+              onChange={e => setField('image_url', e.target.value)}
+              placeholder="https://... (URL image produit)"
+              className={inputCls}
+              style={inputStyle}
+            />
+            {form.image_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.image_url} alt="preview" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 10, marginTop: 8, border: '1px solid rgba(0,0,0,0.1)' }} />
+            )}
           </div>
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : editReward ? 'Enregistrer' : 'Créer la récompense'}

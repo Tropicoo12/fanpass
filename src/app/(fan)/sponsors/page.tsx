@@ -66,10 +66,15 @@ export default async function SponsorsPage() {
                 key={s.id}
                 className="shrink-0 px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 flex items-center gap-2"
               >
-                <div className="w-6 h-6 rounded-full border border-white/20 flex items-center justify-center text-xs font-bold"
-                  style={{ background: s.primary_color + '30', color: s.primary_color }}>
-                  {s.name[0]}
-                </div>
+                {s.logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.logo_url} alt={s.name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} />
+                ) : (
+                  <div className="w-7 h-7 rounded-full border border-white/20 flex items-center justify-center text-xs font-bold"
+                    style={{ background: s.primary_color + '30', color: s.primary_color }}>
+                    {s.name[0]}
+                  </div>
+                )}
                 <span className="text-sm font-medium whitespace-nowrap">{s.name}</span>
               </div>
             ))}

@@ -6,6 +6,7 @@ import { ScanQrCode, Trophy, Gift, ChevronRight, Bell } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { StadiumGatedSection } from '@/components/StadiumGatedSection'
 import { LiveMatchSync } from '@/components/LiveMatchSync'
+import { OnboardingModal } from '@/components/OnboardingModal'
 import type { Database } from '@/types/database'
 import { getLoyaltyLevel, getLoyaltyProgress, LOYALTY_CONFIG } from '@/types/database'
 import { getDefaultClub } from '@/lib/club'
@@ -95,6 +96,8 @@ export default async function HomePage() {
         color: '#1d1d1f',
       }}
     >
+      <OnboardingModal primaryColor={primaryColor} clubName={club?.name ?? 'FanPass'} />
+
       {/* Auto-sync live score every 60s — no cron needed */}
       {nextMatch?.status === 'live' && (nextMatch as any).external_id && (
         <LiveMatchSync matchId={nextMatch.id} />
@@ -622,7 +625,12 @@ export default async function HomePage() {
                       display: 'block',
                     }}
                   >
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
+                    {(r as any).image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={(r as any).image_url} alt={r.title} style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 10, marginBottom: 8 }} />
+                    ) : (
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
+                    )}
                     <p style={{ fontSize: 12, fontWeight: 600, color: '#1d1d1f', margin: '0 0 6px', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {r.title}
                     </p>

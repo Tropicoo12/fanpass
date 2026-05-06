@@ -126,7 +126,14 @@ export function RewardsCatalog({ rewards, userPoints, loyaltyLevel, redemptionCo
               }`}
             >
               <div className="flex items-start justify-between">
-                <span className="text-4xl">{emoji}</span>
+                {(reward as any).image_url ? (
+                  <div className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-1 bg-white/5 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={(reward as any).image_url} alt={reward.title} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <span className="text-4xl">{emoji}</span>
+                )}
                 {status === 'locked' && <Lock className="w-4 h-4 text-gray-500 shrink-0" />}
                 {status === 'no_stock' && <Badge variant="error">Épuisé</Badge>}
                 {status === 'expired' && <Badge variant="neutral">Expiré</Badge>}
@@ -169,7 +176,12 @@ export function RewardsCatalog({ rewards, userPoints, loyaltyLevel, redemptionCo
         {selected && !successCode && (
           <div className="space-y-4">
             <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5">
-              <span className="text-4xl">{CATEGORY_EMOJI[selected.category] ?? '🎁'}</span>
+              {(selected as any).image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={(selected as any).image_url} alt={selected.title} className="w-16 h-16 object-cover rounded-xl" />
+              ) : (
+                <span className="text-4xl">{CATEGORY_EMOJI[selected.category] ?? '🎁'}</span>
+              )}
               <div>
                 <h3 className="font-bold">{selected.title}</h3>
                 {selected.description && <p className="text-sm text-gray-400 mt-0.5">{selected.description}</p>}

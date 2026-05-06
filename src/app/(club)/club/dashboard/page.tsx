@@ -5,7 +5,7 @@ import { LOYALTY_CONFIG, getLoyaltyLevel } from '@/types/database'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getAdminClubId } from '@/lib/club'
-import { Users, Star, TrendingUp, Repeat2, ArrowUp, ArrowDown, Calendar, Zap } from 'lucide-react'
+import { Users, Star, ScanQrCode, Repeat2, ArrowUp, ArrowDown, Calendar, Zap } from 'lucide-react'
 
 function KpiCard({
   label,
@@ -97,6 +97,10 @@ export default async function DashboardPage() {
 
   const primaryColor = club?.primary_color ?? '#E1001A'
 
+  // Get club match IDs first (for correct checkin filtering)
+  const { data: clubMatches } = await supabase.from('matches').select('id').eq('club_id', CLUB_ID)
+  const matchIdList = clubMatches?.map(m => m.id) ?? []
+
   const [
     { count: totalFans },
     { count: totalCheckins },
@@ -106,9 +110,12 @@ export default async function DashboardPage() {
     { data: topFans },
     { data: recentTransactions },
     { data: activeActivations },
+    { data: uniqueCheckinUsers },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('club_id', CLUB_ID).not('role', 'in', '("club_admin","super_admin")'),
-    supabase.from('checkins').select('*', { count: 'exact', head: true }),
+    matchIdList.length
+      ? supabase.from('checkins').select('*', { count: 'exact', head: true }).in('match_id', matchIdList)
+      : Promise.resolve({ count: 0, data: null, error: null }),
     supabase.from('redemptions').select('*', { count: 'exact', head: true }).neq('status', 'cancelled'),
     supabase.from('fan_points').select('total_points').eq('club_id', CLUB_ID),
     supabase.from('matches').select('*').eq('club_id', CLUB_ID).in('status', ['upcoming', 'live']).order('match_date').limit(1).maybeSingle(),
@@ -120,9 +127,15 @@ export default async function DashboardPage() {
       .limit(5),
     supabase.from('points_transactions').select('amount, type, description, created_at, profiles(full_name)').eq('club_id', CLUB_ID).order('created_at', { ascending: false }).limit(8),
     supabase.from('activations').select('*').eq('club_id', CLUB_ID).eq('status', 'active'),
+    matchIdList.length
+      ? supabase.from('checkins').select('user_id').in('match_id', matchIdList)
+      : Promise.resolve({ data: [], error: null }),
   ])
 
   const totalPoints = pointsAgg?.reduce((acc, r) => acc + (r.total_points ?? 0), 0) ?? 0
+
+  const uniqueCheckinCount = new Set(uniqueCheckinUsers?.map((c: any) => c.user_id)).size
+  const engagementRate = (totalFans ?? 0) > 0 ? Math.round((uniqueCheckinCount / (totalFans ?? 1)) * 100) : 0
 
   const typeEmoji: Record<string, string> = {
     checkin: '📲', pronostic: '⚽', survey: '📊', redemption: '🎁', bonus: '⭐', manual: '✏️', activation: '⚡',
@@ -187,15 +200,16 @@ export default async function DashboardPage() {
             </Link>
           )}
           <button
+            disabled
             style={{
               padding: '8px 14px',
               borderRadius: 8,
-              border: '1px solid rgba(0,0,0,0.12)',
-              background: '#ffffff',
-              color: '#1d1d1f',
+              border: '1px solid rgba(0,0,0,0.08)',
+              background: '#f5f5f7',
+              color: 'rgba(29,29,31,0.35)',
               fontSize: 13,
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: 'not-allowed',
             }}
           >
             Export CSV
@@ -237,34 +251,34 @@ export default async function DashboardPage() {
       {/* KPI GRID */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
         <KpiCard
-          label="Fans actifs"
+          label="Fans inscrits"
           value={(totalFans ?? 0).toLocaleString('fr-BE')}
-          change="+12%"
-          changeType="up"
+          change="Inscrits"
+          changeType="neutral"
           icon={<Users size={20} />}
           iconColor="#1565c0"
         />
         <KpiCard
           label="Points distribués"
           value={totalPoints >= 1000 ? `${(totalPoints / 1000).toFixed(1)}k` : String(totalPoints)}
-          change="+8%"
-          changeType="up"
+          change="Distribués"
+          changeType="neutral"
           icon={<Star size={20} />}
           iconColor="#c8860a"
         />
         <KpiCard
-          label="Revenus sponsors"
-          value="€0"
-          change="—"
+          label="Check-ins total"
+          value={(totalCheckins ?? 0).toLocaleString('fr-BE')}
+          change="En direct"
           changeType="neutral"
-          icon={<TrendingUp size={20} />}
-          iconColor="#2e7d32"
+          icon={<ScanQrCode size={20} />}
+          iconColor="#0369a1"
         />
         <KpiCard
-          label="Taux rétention"
-          value="—"
-          change="—"
-          changeType="neutral"
+          label="Taux d'engagement"
+          value={`${engagementRate}%`}
+          change={engagementRate >= 50 ? 'Excellent' : engagementRate >= 25 ? 'Bon' : 'À améliorer'}
+          changeType={engagementRate >= 50 ? 'up' : engagementRate >= 25 ? 'neutral' : 'down'}
           icon={<Repeat2 size={20} />}
           iconColor="#6a1b9a"
         />
@@ -559,7 +573,7 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* ANALYSE IA (static for now) */}
+      {/* INSIGHTS */}
       <div
         style={{
           background: '#ffffff',
@@ -569,13 +583,13 @@ export default async function DashboardPage() {
         }}
       >
         <h2 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 14px', color: '#6a1b9a', display: 'flex', alignItems: 'center', gap: 6 }}>
-          ✨ Analyse IA
+          ✨ Insights
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div style={{ background: '#f5f5f7', borderRadius: 10, padding: 14 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#1d1d1f', margin: '0 0 4px' }}>Engagement en hausse</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#1d1d1f', margin: '0 0 4px' }}>Présence au stade</p>
             <p style={{ fontSize: 12, color: 'rgba(29,29,31,0.55)', margin: 0 }}>
-              Les fans sont 18% plus actifs lors des matchs à domicile le soir.
+              {totalCheckins ?? 0} check-ins enregistrés sur {clubMatches?.length ?? 0} match{(clubMatches?.length ?? 0) !== 1 ? 's' : ''}.
             </p>
           </div>
           <div style={{ background: '#f5f5f7', borderRadius: 10, padding: 14 }}>
