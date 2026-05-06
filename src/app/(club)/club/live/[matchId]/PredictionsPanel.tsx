@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { TrendingUp, Plus, Check, Trash2, Loader2, Eye, EyeOff } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { TrendingUp, Plus, Check, Trash2, Loader2, Eye, EyeOff, Zap } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -11,6 +11,19 @@ import type { Match, MatchMarket, MarketOption } from '@/types/database'
 
 interface Props { match: Match }
 
+/** Determine H2H winner key from final score */
+function h2hWinner(home: number | null, away: number | null): 'home' | 'draw' | 'away' | null {
+  if (home === null || away === null) return null
+  if (home > away) return 'home'
+  if (home < away) return 'away'
+  return 'draw'
+}
+
+/** A market is H2H if its options contain home/draw/away keys */
+function isH2hMarket(opts: MarketOption[]) {
+  return opts.some(o => o.key === 'home') && opts.some(o => o.key === 'away')
+}
+
 export function PredictionsPanel({ match }: Props) {
   const router = useRouter()
   const { toast } = useToast()
@@ -20,6 +33,7 @@ export function PredictionsPanel({ match }: Props) {
   const [showCreate, setShowCreate] = useState(false)
   const [settleMarket, setSettleMarket] = useState<MatchMarket | null>(null)
   const [correctOption, setCorrectOption] = useState('')
+  const autoSettledRef = useRef(false)
 
   const [form, setForm] = useState({
     market_label: '',
@@ -36,6 +50,41 @@ export function PredictionsPanel({ match }: Props) {
       .then(data => setMarkets(data.markets ?? []))
       .finally(() => setLoading(false))
   }, [match.id])
+
+  // Auto-settle H2H markets when match is finished
+  useEffect(() => {
+    if (match.status !== 'finished') return
+    if (autoSettledRef.current) return
+    if (markets.length === 0) return
+
+    const winner = h2hWinner(match.home_score, match.away_score)
+    if (!winner) return
+
+    const unsettledH2h = markets.filter(m => {
+      const opts = m.options as unknown as MarketOption[]
+      return !m.is_settled && isH2hMarket(opts)
+    })
+    if (unsettledH2h.length === 0) return
+
+    autoSettledRef.current = true
+
+    Promise.all(unsettledH2h.map(market =>
+      fetch(`/api/club/matches/${match.id}/markets/${market.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_settled: true, correct_option: winner }),
+      }).then(res => {
+        if (res.ok) {
+          setMarkets(prev => prev.map(m =>
+            m.id === market.id ? { ...m, is_settled: true, correct_option: winner, is_published: false } : m
+          ))
+        }
+      })
+    )).then(() => {
+      toast('Marchés H2H réglés automatiquement — gains distribués ✓', 'success')
+      router.refresh()
+    })
+  }, [match.status, match.home_score, match.away_score, markets, match.id, toast, router])
 
   function setOption(i: number, field: 'label' | 'odds', value: string) {
     setForm(f => {
@@ -61,12 +110,12 @@ export function PredictionsPanel({ match }: Props) {
       const res = await fetch(`/api/club/matches/${match.id}/markets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ market_key: 'h2h', market_label: 'Vainqueur du match', market_emoji: '🏆', options }),
+        body: JSON.stringify({ market_key: 'h2h', market_label: '1X2 — Résultat du match', market_emoji: '🏆', options }),
       })
       const data = await res.json()
       if (!res.ok) { toast(data.error ?? 'Erreur', 'error'); return }
       setMarkets(prev => [...prev, data.market])
-      toast('Marché H2H créé !', 'success')
+      toast('Marché H2H créé — se règle automatiquement à la fin du match', 'success')
     } catch { toast('Erreur réseau', 'error') }
     finally { setLoadingId(null) }
   }
@@ -129,7 +178,7 @@ export function PredictionsPanel({ match }: Props) {
       if (!res.ok) { toast(data.error ?? 'Erreur', 'error'); return }
       setMarkets(prev => prev.map(m => m.id === settleMarket.id
         ? { ...m, is_settled: true, correct_option: correctOption } : m))
-      toast('Marché réglé et gains distribués !', 'success')
+      toast('Marché réglé — gains distribués !', 'success')
       setSettleMarket(null)
       setCorrectOption('')
       router.refresh()
@@ -148,7 +197,10 @@ export function PredictionsPanel({ match }: Props) {
     finally { setLoadingId(null) }
   }
 
-  const hasH2h = markets.some(m => m.market_key === 'h2h')
+  const hasH2h = markets.some(m => {
+    const opts = m.options as unknown as MarketOption[]
+    return isH2hMarket(opts)
+  })
 
   return (
     <Card variant="dark">
@@ -157,16 +209,26 @@ export function PredictionsPanel({ match }: Props) {
           <TrendingUp className="w-4 h-4 text-amber-400" /> Marchés de prédiction
         </h2>
         <div className="flex gap-2">
-          {!hasH2h && match.odds_home && (
+          {!hasH2h && match.odds_home && match.status !== 'finished' && (
             <Button size="sm" variant="secondary" onClick={createH2hMarket} disabled={loadingId === 'h2h'}>
               {loadingId === 'h2h' ? <Loader2 className="w-3 h-3 animate-spin" /> : '+ H2H'}
             </Button>
           )}
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Nouveau
-          </Button>
+          {match.status !== 'finished' && (
+            <Button size="sm" onClick={() => setShowCreate(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Nouveau
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Auto-settle notice */}
+      {match.status === 'finished' && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
+          <Zap className="w-3.5 h-3.5 shrink-0" />
+          Match terminé — les marchés H2H sont réglés automatiquement. Les marchés personnalisés nécessitent une validation manuelle.
+        </div>
+      )}
 
       {loading && <p className="text-gray-500 text-sm text-center py-4">Chargement…</p>}
 
@@ -183,6 +245,7 @@ export function PredictionsPanel({ match }: Props) {
       <div className="space-y-3">
         {markets.map(market => {
           const opts = market.options as unknown as MarketOption[]
+          const isH2h = isH2hMarket(opts)
           const statusLabel = market.is_settled ? 'Réglé' : market.is_published ? 'Ouvert' : 'Fermé'
           const statusColor = market.is_settled ? 'text-gray-400' : market.is_published ? 'text-emerald-400' : 'text-amber-400'
           return (
@@ -191,7 +254,16 @@ export function PredictionsPanel({ match }: Props) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className={`text-xs font-bold uppercase tracking-wide ${statusColor}`}>{statusLabel}</span>
-                    <span className="text-xs text-gray-500">{market.market_emoji} {market.market_key}</span>
+                    {isH2h && !market.is_settled && match.status !== 'finished' && (
+                      <span className="text-xs text-emerald-500/70 flex items-center gap-1">
+                        <Zap className="w-2.5 h-2.5" /> Auto à la fin
+                      </span>
+                    )}
+                    {isH2h && market.is_settled && (
+                      <span className="text-xs text-emerald-500/70 flex items-center gap-1">
+                        <Zap className="w-2.5 h-2.5" /> Auto-réglé
+                      </span>
+                    )}
                   </div>
                   <p className="font-semibold text-sm">{market.market_label}</p>
                   <div className="flex gap-2 mt-1.5 flex-wrap">
@@ -201,7 +273,7 @@ export function PredictionsPanel({ match }: Props) {
                           ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-400'
                           : 'border-white/10 bg-white/5 text-gray-300'
                       }`}>
-                        {o.label} <span className="text-amber-400 font-bold">x{o.odds.toFixed(2)}</span>
+                        {o.label} <span className="text-amber-400 font-bold">×{o.odds.toFixed(2)}</span>
                       </span>
                     ))}
                   </div>
@@ -210,7 +282,7 @@ export function PredictionsPanel({ match }: Props) {
                   )}
                 </div>
                 <div className="flex flex-col gap-1.5 shrink-0">
-                  {!market.is_settled && (
+                  {!market.is_settled && match.status !== 'finished' && (
                     <button
                       onClick={() => togglePublish(market)}
                       disabled={loadingId === market.id}
@@ -220,12 +292,13 @@ export function PredictionsPanel({ match }: Props) {
                       {market.is_published ? 'Fermer' : 'Ouvrir'}
                     </button>
                   )}
-                  {!market.is_settled && market.is_published && (
+                  {/* Manual settle only for non-H2H markets */}
+                  {!market.is_settled && !isH2h && (
                     <Button size="sm" onClick={() => { setSettleMarket(market); setCorrectOption('') }}>
                       <Check className="w-3 h-3 mr-1" /> Régler
                     </Button>
                   )}
-                  {!market.is_published && !market.is_settled && (
+                  {!market.is_published && !market.is_settled && match.status !== 'finished' && (
                     <button
                       onClick={() => deleteMarket(market.id)}
                       disabled={!!loadingId}
@@ -293,11 +366,11 @@ export function PredictionsPanel({ match }: Props) {
         </form>
       </Modal>
 
-      {/* Settle modal */}
+      {/* Settle modal — custom markets only */}
       <Modal
         open={!!settleMarket}
         onClose={() => { setSettleMarket(null); setCorrectOption('') }}
-        title={`Régler : ${settleMarket?.market_label}`}
+        title={`Résultat : ${settleMarket?.market_label}`}
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-400">Sélectionne la bonne réponse pour distribuer les gains automatiquement.</p>
@@ -313,7 +386,7 @@ export function PredictionsPanel({ match }: Props) {
                 }`}
               >
                 <span className="font-medium">{o.label}</span>
-                <span className="text-amber-400 font-bold text-sm">x{o.odds.toFixed(2)}</span>
+                <span className="text-amber-400 font-bold text-sm">×{o.odds.toFixed(2)}</span>
               </button>
             ))}
           </div>
@@ -322,7 +395,7 @@ export function PredictionsPanel({ match }: Props) {
             disabled={!correctOption || loadingId === 'settle'}
             onClick={settleWithOption}
           >
-            {loadingId === 'settle' ? <Loader2 className="w-4 h-4 animate-spin" /> : `Confirmer et distribuer les gains`}
+            {loadingId === 'settle' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmer et distribuer les gains'}
           </Button>
         </div>
       </Modal>
